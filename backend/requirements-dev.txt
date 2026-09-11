@@ -1,0 +1,14 @@
+# Development and test dependencies. Install with:
+#   pip install -r requirements.txt -r requirements-dev.txt
+
+-r requirements.txt
+
+# --- testing ---------------------------------------------------------------
+pytest>=8.3,<9.0
+pytest-asyncio>=0.25,<2.0
+httpx>=0.28,<0.29               # ASGI transport for API tests
+anyio>=4.7,<5.0
+
+# --- quality ---------------------------------------------------------------
+ruff>=0.8,<1.0
+mypy>=1.14,<2.0

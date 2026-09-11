@@ -1,0 +1,75 @@
+[project]
+name = "class-booking-backend"
+version = "0.1.0"
+description = "Studio class booking system — FastAPI backend"
+requires-python = ">=3.11"
+
+# Dependencies live in requirements.txt / requirements-dev.txt.
+# This file configures tooling only.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["."]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+    "ASYNC",# flake8-async
+    "S",    # flake8-bandit
+    "T20",  # flake8-print — no stray print() in a structlog codebase
+    "RUF",
+]
+ignore = [
+    "S101",  # assert is fine in tests
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# B008 exists to stop a mutable default being shared between calls. FastAPI's
+# parameter markers are the documented idiom and are re-evaluated per request by
+# the framework, so they are not the hazard the rule is about.
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Cookie",
+    "fastapi.Depends",
+    "fastapi.Header",
+    "fastapi.Path",
+    "fastapi.Query",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Hardcoded test passwords are fine. T20 is allowed because a measurement test
+# reports its number to the terminal, which is the whole point of taking it.
+"tests/*" = ["S105", "S106", "T20"]
+# Migrations build DDL from module-level constants (role names, table names).
+# S608 flags that as injection, which it cannot be — there is no user input in a
+# migration. E501 covers generated bodies.
+"alembic/versions/*" = ["E501", "S608"]
+# A command-line script talks to a terminal. T20 bans print() so it cannot creep
+# into the application, where structlog is the only way out.
+"app/seed/__main__.py" = ["T20"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+exclude = ["alembic/versions/"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q --strict-markers"
+markers = [
+    "concurrency: tests that run parallel transactions against real Postgres",
+]

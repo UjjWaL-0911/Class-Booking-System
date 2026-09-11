@@ -1,0 +1,41 @@
+# Runtime dependencies.
+# Pinned to compatible-release ranges; `pip freeze > requirements.lock.txt` produces
+# the exact set actually deployed.
+
+# --- web framework ---------------------------------------------------------
+fastapi>=0.115,<0.120
+uvicorn[standard]>=0.34,<0.40
+gunicorn>=23.0,<24.0            # process supervision in production; one uvicorn worker
+
+# --- data access -----------------------------------------------------------
+SQLAlchemy[asyncio]>=2.0.36,<2.1
+asyncpg>=0.30,<0.31            # the application driver
+alembic>=1.14,<2.0
+
+# Alembic runs on a SYNC driver, deliberately. asyncpg refuses multi-statement
+# strings ("cannot insert multiple commands into a prepared statement"), and this
+# schema's migrations are full of multi-statement PL/pgSQL function bodies.
+# Migrations are a one-shot batch job with no reason to be async, and using a
+# separate driver mirrors the separate connection and role they already use:
+# session-mode pooler as the owner, rather than transaction pooler as app_rw.
+psycopg[binary]>=3.2,<4.0
+
+# --- validation and settings ----------------------------------------------
+pydantic>=2.10,<3.0
+pydantic-settings>=2.7,<3.0
+email-validator>=2.2,<3.0       # backs pydantic's EmailStr
+
+# --- security --------------------------------------------------------------
+PyJWT>=2.10,<3.0                # access tokens
+argon2-cffi>=23.1,<26.0         # password hashing
+
+# --- observability ---------------------------------------------------------
+structlog>=24.4,<26.0
+
+# --- platform --------------------------------------------------------------
+# Ships the IANA timezone database with the application instead of trusting the
+# host to have one. Windows has no system tz database at all, and a slim Linux
+# container often omits it — in both cases zoneinfo raises ZoneInfoNotFoundError
+# and STUDIO_TIMEZONE fails validation at start-up. Four goals depend on that
+# lookup working, so the data is a dependency rather than an assumption.
+tzdata>=2024.2
