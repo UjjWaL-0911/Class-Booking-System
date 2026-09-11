@@ -1,0 +1,63 @@
+
+# --- dependencies ----------------------------------------------------------
+node_modules/
+.venv/
+venv/
+env/
+*.egg-info/
+
+# --- build output ----------------------------------------------------------
+dist/
+build/
+.next/
+out/
+target/
+*.tsbuildinfo
+
+# --- caches ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.cache/
+.vite/
+.eslintcache
+htmlcov/
+.coverage
+.coverage.*
+coverage/
+*.cover
+
+# --- secrets ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- databases and dumps ---------------------------------------------------
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+
+# --- logs and runtime ------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-error.log*
+pids/
+*.pid
+
+# --- editors and operating systems -----------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- assistant scratch -----------------------------------------------------
+.claude/
