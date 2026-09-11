@@ -1,0 +1,74 @@
+"""Member endpoints.
+
+Goal 1 assigns members to staff: "add members and set their membership expiry".
+Instructors can read them — a class roster is names — but cannot create or edit.
+"""
+
+from __future__ import annotations
+
+import uuid
+
+from fastapi import APIRouter, Query, status
+
+from app.core.deps import AnyUser, DbSession, StaffUser
+from app.schemas.common import Page
+from app.schemas.member import MemberCreate, MemberOut, MemberUpdate
+from app.services.member_service import MemberService
+
+router = APIRouter(prefix="/members", tags=["members"])
+
+
+@router.get("", response_model=Page[MemberOut], summary="List and search members")
+async def list_members(
+    db: DbSession,
+    _: AnyUser,
+    q: str | None = Query(
+        default=None,
+        max_length=100,
+        description="Match against name or email.",
+    ),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> Page[MemberOut]:
+    """Search happens in the database, not the browser.
+
+    The length cap on ``q`` matters: a trigram index stops helping once the search
+    term is long enough that few trigrams are shared, and an unbounded term is a
+    cheap way to force a sequential scan.
+    """
+    members, total = await MemberService(db).list(search=q, limit=limit, offset=offset)
+    return Page[MemberOut](
+        items=[MemberOut.model_validate(m) for m in members],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/{member_id}", response_model=MemberOut, summary="Get one member")
+async def get_member(member_id: uuid.UUID, db: DbSession, _: AnyUser) -> MemberOut:
+    return MemberOut.model_validate(await MemberService(db).get(member_id))
+
+
+@router.post(
+    "",
+    response_model=MemberOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a member",
+)
+async def create_member(payload: MemberCreate, db: DbSession, _: StaffUser) -> MemberOut:
+    member = await MemberService(db).create(payload)
+    await db.commit()
+    return MemberOut.model_validate(member)
+
+
+@router.patch("/{member_id}", response_model=MemberOut, summary="Edit a member")
+async def update_member(
+    member_id: uuid.UUID, payload: MemberUpdate, db: DbSession, _: StaffUser
+) -> MemberOut:
+    """Changing ``membership_expiry`` here also clears any dismissed expiry alert
+    for this member — by database trigger, so it cannot be forgotten. See goal 10.
+    """
+    member = await MemberService(db).update(member_id, payload)
+    await db.commit()
+    return MemberOut.model_validate(member)
