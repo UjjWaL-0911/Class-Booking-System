@@ -53,6 +53,10 @@ class BookingListItem(BaseModel):
 
     class_id: uuid.UUID
     class_title: str
+    # Carried so the list can speak the studio's language rather than a generic
+    # one: a cancelled place on a yoga class frees a mat, not a "spot". The join
+    # is already here for the title, so this costs nothing but the column.
+    discipline: str
 
     # A waitlisted booking on a session that has already happened is displayed as
     # such rather than silently rewritten — see "Two query definitions that are

@@ -134,6 +134,7 @@ async def list_bookings(
             session_start_time=row.session.starts_at.astimezone(settings.tz).time(),
             class_id=row.studio_class.id,
             class_title=row.studio_class.title,
+            discipline=row.studio_class.discipline,
             session_has_passed=has_passed(row.session, now),
         )
         for row in result.rows

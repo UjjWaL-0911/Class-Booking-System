@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { BookingFilters } from '@/components/domain/booking-filters'
+import { CancelBookingDialog, type CancelTarget } from '@/components/domain/cancel-booking-dialog'
 import { StatusChip } from '@/components/domain/chips'
 import { TakeBookingDialog } from '@/components/domain/take-booking-dialog'
 import { Button } from '@/components/ui/button'
@@ -30,12 +31,19 @@ import { routes } from '@/lib/routes'
  * Sorting is on the column headers rather than in a dropdown, and only the three
  * columns the server can actually sort by are clickable. A header that looks
  * sortable and is not is worse than one that plainly is not.
+ *
+ * Cancelling happens here as well as on the session. It was on the session alone,
+ * which is defensible — a register is a session's document — and wrong: this is
+ * the screen called Bookings, it is where somebody searching for one arrives, and
+ * an action you can only reach by first knowing which class to open is an action
+ * most people conclude does not exist.
  */
 export function BookingsPage() {
   const { timeZone } = useStudio()
   const isStaff = useIsStaff()
   const [params, setParams] = useSearchParams()
   const [booking, setBooking] = useState(false)
+  const [cancelling, setCancelling] = useState<CancelTarget | null>(null)
 
   const q = params.get('q') ?? ''
   const classId = params.get('class') ?? ''
@@ -131,8 +139,8 @@ export function BookingsPage() {
           <Table>
             <thead>
               <tr>
-                <Th className="w-[26%]">Member</Th>
-                <Th className="w-[20%]">Class</Th>
+                <Th className="w-[24%]">Member</Th>
+                <Th className="w-[18%]">Class</Th>
                 <SortableTh
                   className="w-[18%]"
                   active={sort === 'session'}
@@ -150,14 +158,14 @@ export function BookingsPage() {
                   Status
                 </SortableTh>
                 <SortableTh
-                  className="w-[14%]"
+                  className="w-[12%]"
                   active={sort === 'booked_at'}
                   direction={direction}
                   onClick={() => toggleSort('booked_at')}
                 >
                   Taken
                 </SortableTh>
-                <Th className="w-[6%] text-right">&nbsp;</Th>
+                <Th className="w-[12%] text-right">&nbsp;</Th>
               </tr>
             </thead>
             <tbody>
@@ -188,12 +196,40 @@ export function BookingsPage() {
                   </Td>
                   <Td className="text-graphite">{formatInstant(item.booked_at, timeZone)}</Td>
                   <Td className="text-right">
-                    <Link
-                      to={routes.bookingHistory(item.id)}
-                      className="text-12 text-graphite hover:text-ink hover:underline"
-                    >
-                      History
-                    </Link>
+                    <span className="inline-flex items-center gap-4">
+                      {/* Exactly the server's rule, not a looser one: staff only,
+                          and only while the booking is still active. A settled or
+                          already-cancelled booking has no cancel to offer, and
+                          offering one would be a button that fails. */}
+                      {isStaff && (item.status === 'booked' || item.status === 'waitlisted') && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCancelling({
+                              bookingId: item.id,
+                              memberName: item.member_name,
+                              status: item.status,
+                              className: item.class_title,
+                              discipline: item.discipline,
+                            })
+                          }
+                          className="text-12 text-graphite underline-offset-2 hover:text-bad-ink hover:underline"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      {/* A permanent underline, not one that appears on hover.
+                          This is the way into goal 9's timeline and it was a grey
+                          word at the edge of a wide table — the same mistake the
+                          class titles made, where something genuinely clickable
+                          read as a label because nothing said otherwise. */}
+                      <Link
+                        to={routes.bookingHistory(item.id)}
+                        className="text-12 text-graphite underline decoration-1 underline-offset-4 hover:text-ink"
+                      >
+                        History
+                      </Link>
+                    </span>
                   </Td>
                 </Tr>
               ))}
@@ -211,6 +247,7 @@ export function BookingsPage() {
       )}
 
       <TakeBookingDialog open={booking} onOpenChange={setBooking} />
+      <CancelBookingDialog target={cancelling} onClose={() => setCancelling(null)} />
     </Page>
   )
 }

@@ -59,6 +59,8 @@ export interface BookingListItem {
 
   class_id: Uuid
   class_title: string
+  /** So a row can say a mat or a bike opened up rather than a generic "spot". */
+  discipline: string
 
   /** A waitlisted booking on a session that has already happened stays waitlisted. */
   session_has_passed: boolean

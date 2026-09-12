@@ -398,6 +398,7 @@ class TestRowShape:
         assert item["member_name"] == member["full_name"]
         assert item["member_email"] == member["email"]
         assert item["class_title"] == studio_class["title"]
+        assert item["discipline"] == studio_class["discipline"]
         assert item["session_date"] == FUTURE.isoformat()
         assert item["session_has_passed"] is False
 
