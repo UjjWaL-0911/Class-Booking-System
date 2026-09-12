@@ -18,8 +18,10 @@ import uuid
 from sqlalchemy import ColumnElement, or_, select, true
 from sqlalchemy.sql.elements import BooleanClauseList
 
+from app.models.booking import Booking
 from app.models.class_session import ClassSession, SessionCoInstructor
 from app.models.enums import UserRole
+from app.models.member import Member
 from app.models.user import User
 
 
@@ -53,3 +55,38 @@ def can_access_session(
     if user.role is UserRole.STAFF:
         return True
     return session.primary_instructor_id == user.id or user.id in co_instructor_ids
+
+
+def visible_members_clause(user: User) -> ColumnElement[bool] | BooleanClauseList:
+    """A WHERE clause restricting ``members`` to the people this user may see.
+
+    Staff see the whole binder — goal 1 gives them the membership records. An
+    instructor sees the people who have a booking on a session they can see.
+
+    It is defined in terms of ``visible_sessions_clause`` rather than repeating
+    the rule, and that is the point: the set of members an instructor can read is
+    derived from the set of bookings they can already read, so the roster and the
+    directory cannot disagree about who exists. A name visible on a register and
+    missing from the directory would be a worse bug than either behaviour on its
+    own.
+
+    Booking status is deliberately not filtered. Somebody who booked a class and
+    cancelled still appears on that session's timeline, which the instructor can
+    already open, so hiding the member record would conceal nothing and only
+    produce a dangling name.
+
+    Soft-deleted sessions are excluded, matching every other read in the system:
+    a deleted session's bookings are cancelled with it and it is not part of
+    anybody's teaching history.
+    """
+    if user.role is UserRole.STAFF:
+        return true()
+
+    return Member.id.in_(
+        select(Booking.member_id)
+        .join(ClassSession, ClassSession.id == Booking.session_id)
+        .where(
+            ClassSession.deleted_at.is_(None),
+            visible_sessions_clause(user),
+        )
+    )

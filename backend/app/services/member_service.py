@@ -17,6 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFound
 from app.models.member import Member
+from app.models.user import User
+from app.repositories.visibility import visible_members_clause
 from app.schemas.member import MemberCreate, MemberUpdate
 
 
@@ -39,8 +41,17 @@ def _search_clause(query: Select[tuple[Member]], term: str) -> Select[tuple[Memb
 
 
 class MemberService:
-    def __init__(self, db: AsyncSession) -> None:
+    """Members, scoped to whoever is asking.
+
+    The viewer is a constructor argument rather than a parameter on each read,
+    because the alternative is a reader that is correct only while every call site
+    remembers to pass it. Staff resolve to an unrestricted clause, so the scoping
+    costs them nothing and cannot be forgotten by anyone.
+    """
+
+    def __init__(self, db: AsyncSession, viewer: User) -> None:
         self.db = db
+        self.viewer = viewer
 
     async def list(
         self, *, search: str | None = None, limit: int = 50, offset: int = 0
@@ -51,7 +62,7 @@ class MemberService:
         wire format is the router's job, and a service that returns Pydantic
         models cannot be reused by anything that wants the rows themselves.
         """
-        query = select(Member)
+        query = select(Member).where(visible_members_clause(self.viewer))
         if search:
             query = _search_clause(query, search)
 
@@ -72,8 +83,19 @@ class MemberService:
         return rows, total
 
     async def get(self, member_id: uuid.UUID) -> Member:
+        """One member, if this viewer may see them.
+
+        A member outside the viewer's scope raises ``NotFound`` rather than a 403.
+        Telling an instructor "that member exists but is not yours" would leak the
+        existence of every member the rule is there to hide, one id at a time.
+        """
         member = (
-            await self.db.execute(select(Member).where(Member.id == member_id))
+            await self.db.execute(
+                select(Member).where(
+                    Member.id == member_id,
+                    visible_members_clause(self.viewer),
+                )
+            )
         ).scalar_one_or_none()
         if member is None:
             raise NotFound("No such member.")

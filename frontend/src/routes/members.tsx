@@ -27,6 +27,13 @@ import { routes } from '@/lib/routes'
  *
  * The search box is the first thing focused. "Delgado" is how this screen is
  * used, ninety-nine times out of a hundred.
+ *
+ * It is not the same binder for both roles. Staff get all of it; an instructor
+ * gets the people who have booked into a class they teach, because the server
+ * scopes the endpoint that way — a membership expiry is personal data, and an
+ * instructor covering one evening class has no business paging through the whole
+ * studio. The heading and the empty state say which binder is on screen rather
+ * than leaving an instructor to wonder where everybody went.
  */
 export function MembersPage() {
   const { today } = useStudio()
@@ -55,7 +62,11 @@ export function MembersPage() {
     <Page>
       <PageHeader
         title="Members"
-        subtitle="Everyone the studio can book into a class"
+        subtitle={
+          isStaff
+            ? 'Everyone the studio can book into a class'
+            : 'The people who have booked into a class you teach'
+        }
         actions={
           isStaff && (
             <Button variant="primary" onClick={() => setAdding(true)}>
@@ -98,7 +109,9 @@ export function MembersPage() {
           >
             {q
               ? 'Searching matches a name or an email address.'
-              : 'Add the people who come to classes, and the desk can book them in.'}
+              : isStaff
+                ? 'Add the people who come to classes, and the desk can book them in.'
+                : 'People appear here once they have booked into one of your classes.'}
           </EmptyState>
         )}
 

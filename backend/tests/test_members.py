@@ -34,7 +34,62 @@ def _member(**overrides: Any) -> dict[str, Any]:
 async def _create(staff: AsyncClient, **overrides: Any) -> dict[str, Any]:
     response = await staff.post("/api/v1/members", json=_member(**overrides))
     assert response.status_code == 201, response.text
-    return response.json()
+    return dict(response.json())
+
+
+# --- scaffolding for the visibility cases -----------------------------------
+# A member is only visible to an instructor through a booking on a session they
+# teach, so these tests need the whole chain: room, class, session, booking.
+
+FUTURE = dt.date.today() + dt.timedelta(days=30)
+
+
+async def _user_id(db: AsyncSession, email: str) -> str:
+    return str(
+        (await db.execute(text("SELECT id FROM users WHERE email = :e"), {"e": email})).scalar_one()
+    )
+
+
+async def _session(
+    staff: AsyncClient,
+    db: AsyncSession,
+    accounts: dict[str, str],
+    *,
+    instructor_id: str | None = None,
+) -> dict[str, Any]:
+    tag = uuid.uuid4().hex[:8]
+    room = await staff.post("/api/v1/rooms", json={"name": f"Room {tag}"})
+    studio_class = await staff.post(
+        "/api/v1/classes",
+        json={
+            "title": f"Class {tag}",
+            "description": "",
+            "discipline": "yoga",
+            "default_duration_min": 60,
+            "default_capacity": 20,
+        },
+    )
+    response = await staff.post(
+        "/api/v1/sessions",
+        json={
+            "class_id": studio_class.json()["id"],
+            "session_date": FUTURE.isoformat(),
+            "start_time": "18:00:00",
+            "primary_instructor_id": instructor_id or await _user_id(db, accounts["instructor"]),
+            "room_id": room.json()["id"],
+            "capacity": 20,
+        },
+    )
+    assert response.status_code == 201, response.text
+    return dict(response.json())
+
+
+async def _book(staff: AsyncClient, session_id: str, member_id: str) -> dict[str, Any]:
+    response = await staff.post(
+        "/api/v1/bookings", json={"session_id": session_id, "member_id": member_id}
+    )
+    assert response.status_code == 201, response.text
+    return dict(response.json())
 
 
 class TestCreate:
@@ -70,14 +125,150 @@ class TestCreate:
 
         assert response.status_code == 403
 
-    async def test_an_instructor_can_read_members(
+
+class TestInstructorScope:
+    """Which members an instructor may read (goal 1).
+
+    The rule is derived rather than declared: an instructor sees the people who
+    have a booking on a session they can see. Anything else would let the roster
+    and the directory disagree about who exists.
+
+    The first version of this endpoint let an instructor read every member in the
+    studio, on the reasoning that "a class roster is a list of names". A roster is
+    the names of people in *your* class; the directory is everybody who ever
+    joined, each with a membership expiry beside them. These tests are what stops
+    that reasoning coming back.
+
+    Every case creates its own class, so a shared test database that is never
+    truncated cannot make one of them pass for the wrong reason.
+    """
+
+    async def test_a_member_on_their_own_session_is_readable(
+        self,
+        staff: AsyncClient,
+        instructor: AsyncClient,
+        db: AsyncSession,
+        accounts: dict[str, str],
+    ) -> None:
+        session = await _session(staff, db, accounts)
+        mine = await _create(staff)
+        await _book(staff, session["id"], mine["id"])
+
+        response = await instructor.get(f"/api/v1/members/{mine['id']}")
+
+        assert response.status_code == 200
+        assert response.json()["id"] == mine["id"]
+
+    async def test_a_member_they_never_taught_is_not_readable(
         self, staff: AsyncClient, instructor: AsyncClient
     ) -> None:
-        """A class roster is a list of names, so reading is allowed."""
-        created = await _create(staff)
+        """404, not 403. "That one exists but is not yours" would enumerate the
+        whole membership one id at a time."""
+        stranger = await _create(staff)
 
-        assert (await instructor.get("/api/v1/members")).status_code == 200
-        assert (await instructor.get(f"/api/v1/members/{created['id']}")).status_code == 200
+        response = await instructor.get(f"/api/v1/members/{stranger['id']}")
+
+        assert response.status_code == 404
+        assert (await staff.get(f"/api/v1/members/{stranger['id']}")).status_code == 200
+
+    async def test_the_list_holds_only_their_own_people(
+        self,
+        staff: AsyncClient,
+        instructor: AsyncClient,
+        db: AsyncSession,
+        accounts: dict[str, str],
+    ) -> None:
+        tag = uuid.uuid4().hex[:8]
+        session = await _session(staff, db, accounts)
+        mine = await _create(staff, full_name=f"Mine {tag}")
+        stranger = await _create(staff, full_name=f"Stranger {tag}")
+        await _book(staff, session["id"], mine["id"])
+
+        found = (await instructor.get(f"/api/v1/members?q={tag}")).json()
+        ids = {m["id"] for m in found["items"]}
+
+        assert mine["id"] in ids
+        assert stranger["id"] not in ids
+        # Both exist; only one of them is this instructor's to see.
+        assert len((await staff.get(f"/api/v1/members?q={tag}")).json()["items"]) == 2
+
+    async def test_the_total_matches_the_scoped_rows(
+        self,
+        staff: AsyncClient,
+        instructor: AsyncClient,
+        db: AsyncSession,
+        accounts: dict[str, str],
+    ) -> None:
+        """The count comes from the same filtered query as the rows, so a
+        paginated list cannot advertise members it will never hand over."""
+        tag = uuid.uuid4().hex[:8]
+        session = await _session(staff, db, accounts)
+        for i in range(3):
+            member = await _create(staff, full_name=f"Booked {i} {tag}")
+            await _book(staff, session["id"], member["id"])
+        await _create(staff, full_name=f"Unbooked {tag}")
+
+        body = (await instructor.get(f"/api/v1/members?q={tag}")).json()
+
+        assert body["total"] == 3
+        assert len(body["items"]) == 3
+
+    async def test_a_cancelled_booking_still_counts(
+        self,
+        staff: AsyncClient,
+        instructor: AsyncClient,
+        db: AsyncSession,
+        accounts: dict[str, str],
+    ) -> None:
+        """Somebody who booked and cancelled is still on the session's timeline,
+        which this instructor can already open. Hiding the member record would
+        conceal nothing and leave a dangling name."""
+        session = await _session(staff, db, accounts)
+        member = await _create(staff)
+        booking = await _book(staff, session["id"], member["id"])
+        await staff.post(f"/api/v1/bookings/{booking['id']}/cancel", json={"note": None})
+
+        assert (await instructor.get(f"/api/v1/members/{member['id']}")).status_code == 200
+
+    async def test_a_co_instructed_session_grants_the_same_reach(
+        self,
+        staff: AsyncClient,
+        instructor: AsyncClient,
+        db: AsyncSession,
+        accounts: dict[str, str],
+    ) -> None:
+        """Goal 5's co-instructor relationship carries visibility, and it has to
+        carry it here too — otherwise a co-instructor sees a register full of
+        names the directory denies."""
+        other = await _user_id(db, accounts["staff"])
+        session = await _session(staff, db, accounts, instructor_id=other)
+        member = await _create(staff)
+        await _book(staff, session["id"], member["id"])
+
+        assert (await instructor.get(f"/api/v1/members/{member['id']}")).status_code == 404
+
+        me = await _user_id(db, accounts["instructor"])
+        added = await staff.post(
+            f"/api/v1/sessions/{session['id']}/co-instructors", json={"user_id": me}
+        )
+        assert added.status_code in (200, 201), added.text
+
+        assert (await instructor.get(f"/api/v1/members/{member['id']}")).status_code == 200
+
+    async def test_staff_still_see_the_whole_binder(
+        self, staff: AsyncClient, instructor: AsyncClient
+    ) -> None:
+        """The scoping must cost staff nothing — they resolve to an unrestricted
+        clause, so a member nobody has booked is still theirs to read."""
+        tag = uuid.uuid4().hex[:8]
+        stranger = await _create(staff, full_name=f"Nobody {tag}")
+
+        for_staff = (await staff.get(f"/api/v1/members?q={tag}")).json()
+        for_instructor = (await instructor.get(f"/api/v1/members?q={tag}")).json()
+
+        assert [m["id"] for m in for_staff["items"]] == [stranger["id"]]
+        assert for_instructor["items"] == []
+        assert for_instructor["total"] == 0
 
 
 class TestExpiry:
