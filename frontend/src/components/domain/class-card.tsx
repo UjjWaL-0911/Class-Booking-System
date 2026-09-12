@@ -123,6 +123,15 @@ export function ClassCard({
         )}
 
         <div className="mt-1 flex flex-wrap items-center gap-2">
+          {/* Goal 3's last clause, in as many words: "opening a class shows its
+              sessions". It sat unbuilt for a while with the server ready for it —
+              `GET /sessions` has taken a `class_id` filter all along — because
+              nothing on this card ever asked. */}
+          <Link to={routes.sessionsForClass(studioClass.id)}>
+            <Button size="sm" variant="quiet">
+              Its sessions
+            </Button>
+          </Link>
           <Link to={routes.bookingsForClass(studioClass.id)}>
             <Button size="sm" variant="quiet">
               Its bookings

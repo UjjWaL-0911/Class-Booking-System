@@ -24,6 +24,7 @@ export const routes = {
   bookingHistory: (id: string) => `${APP}/bookings/${id}`,
 
   /** Pre-filtered lists, which several screens link into. */
+  sessionsForClass: (classId: string) => `${APP}/timetable?class=${classId}`,
   bookingsForClass: (classId: string) => `${APP}/bookings?class=${classId}`,
   bookingsWithStatus: (status: string) => `${APP}/bookings?status=${status}`,
   bookingsFor: (email: string) => `${APP}/bookings?q=${encodeURIComponent(email)}`,
