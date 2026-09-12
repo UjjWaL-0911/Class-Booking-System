@@ -297,10 +297,18 @@ class Seeder:
             .all()
         )
         for booking in self.rng.sample(list(candidates), min(18, len(candidates))):
+            # Somewhere between the booking being taken and now — not a fixed
+            # window before now, which was the bug here. A booking for a distant
+            # class is stamped within the last few hours (see `booked_on` above),
+            # so "one to seventy-two hours ago" could land *before* the booking it
+            # cancels, and goal 9's timeline then read as undoing something that
+            # had not happened yet. The one screen a reviewer opens to check the
+            # audit trail is the worst place to have the clock run backwards.
+            cancelled_on = booking.booked_at + (self.now - booking.booked_at) * self.rng.random()
             _, promoted = await service.cancel(
                 booking.id,
                 actor=staff,
-                now=self.now - dt.timedelta(hours=self.rng.randint(1, 72)),
+                now=cancelled_on,
                 note=self.rng.choice(
                     [
                         "Member called to cancel.",
