@@ -1,0 +1,56 @@
+/* ---------------------------------------------------------------------------
+   Tiempos Headline.
+
+   The display face this interface is designed around. It is a commercial family
+   from Klim Type Foundry — licensed, not redistributable, and not available from
+   Google Fonts or Fontsource — so it cannot be installed as a dependency and no
+   amount of build configuration will fetch it.
+
+   **To use the real thing**, with a licence in hand:
+
+     1. Put the web files here:
+
+          src/assets/fonts/tiempos-headline-regular.woff2
+          src/assets/fonts/tiempos-headline-medium.woff2   (optional)
+          src/assets/fonts/tiempos-headline-semibold.woff2 (optional)
+
+     2. Uncomment the @font-face blocks below.
+
+   Nothing else changes. `--font-display` already names 'Tiempos Headline' first,
+   so the moment the family resolves it takes over every headline, the landing
+   page's intro included — and the intro measures its boxes after
+   `document.fonts.ready`, so the flight lands correctly on the new metrics
+   without a line of code moving.
+
+   Until then the stack falls through to Newsreader, which is the closest free
+   face in character: a contemporary screen-first serif in the same
+   Times-derived lineage, generous in width rather than condensed. Deliberately
+   chosen for the width — the previous face was narrow, which is what made the
+   headings look squeezed.
+   --------------------------------------------------------------------------- */
+
+/*
+@font-face {
+  font-family: 'Tiempos Headline';
+  src: url('../assets/fonts/tiempos-headline-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tiempos Headline';
+  src: url('../assets/fonts/tiempos-headline-medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tiempos Headline';
+  src: url('../assets/fonts/tiempos-headline-semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+*/

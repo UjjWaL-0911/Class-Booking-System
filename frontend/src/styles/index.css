@@ -1,0 +1,579 @@
+@import 'tailwindcss';
+@import './tiempos.css';
+
+/* ---------------------------------------------------------------------------
+   Design tokens.
+
+   Three rules hold this interface together, and every value below serves one of
+   them:
+
+   1. The only colour in this interface is information. Chrome is five
+      near-neutrals; saturated colour is reserved for booking status, membership
+      expiry and the focus ring. "Booked" therefore has no colour at all — it is
+      the normal state, and colouring the normal state leaves nothing left to
+      mean "look here".
+   2. Borders do the work that shadows usually do. Elevation is reserved for
+      things that genuinely float above the page: dialogs and popovers.
+   3. Occupancy is counted, not measured. One mark per physical spot in the room,
+      never a progress bar — see OccupancyMark.
+   --------------------------------------------------------------------------- */
+
+@theme {
+  /* Beige and brown, taken a step deeper than a cream: enough chroma and enough
+     weight that it reads as a colour somebody chose rather than an off-white
+     that needed calibrating. A studio is a warm room with wooden floors, and a
+     pale ground was describing a spreadsheet rather than the place.
+
+     Darkening a light ground trades in one direction: every dark thing on it
+     gains contrast and every light thing loses it. Text went up — body to 11.6,
+     secondary to 5.5 — while the rules, the hover row and the empty occupancy
+     ring all had to come down with it to stay visible. The original note
+     follows.
+
+     Beige and brown, and browner than the usual cream: enough chroma that it
+     reads as a colour somebody chose rather than an off-white that needed
+     calibrating. A studio is a warm room with wooden floors, and a near-neutral
+     grey was describing a spreadsheet rather than the place.
+
+     The *relationships* are unchanged from the neutral scheme it replaces —
+     `card` is still a step toward the light, `hairline` is still quieter than
+     `rule`, `mute` is still the ring on an empty spot. Only the hue moved, which
+     is why nothing below this line had to change. */
+  --color-paper: #e8dcc9;
+  --color-card: #f5ede1;
+  --color-rule: #c4b094;
+  --color-hairline: #d6c6ac;
+  --color-mute: #ab9679;
+  --color-graphite: #63533f;
+  --color-ink: #2b2119;
+
+  /* One step further than `ink`, for the primary button's hover. Lifted away
+     from the base in whichever direction is more emphatic for the scheme. */
+  --color-ink-hover: #3c2f23;
+  /* A table row under the cursor — barely a change, and never a highlight. */
+  --color-row: #dfd2bc;
+  /* Behind a dialog. Always dark, in both schemes: a scrim is a shadow cast
+     over the page, and a pale one over a dark page reads as fog. */
+  --color-scrim: oklch(0% 0 0 / 0.28);
+
+  /* The one warm note, and it belongs to the landing page alone: a hairline
+     around the primary call to action and nothing else. The app's rule — that
+     colour means information — still holds inside the tool; a marketing page is
+     allowed one piece of jewellery. */
+  --color-brass: #96702f;
+
+  /* The focus ring, and nothing else.
+
+     This was a blue, and blue was the only cold thing left in a warm scheme —
+     it appeared on fourteen hover states and looked like a colour from another
+     design every time. Those now strengthen to `ink` instead, which is what the
+     underline beside them was already saying.
+
+     What is left is the focus indicator, and it is ink too. A ring does not need
+     a hue of its own to be understood: two pixels, offset by two, at eleven to
+     one against the page is unmistakable, and it can never be confused with a
+     status colour the way a coloured ring eventually is. */
+  --color-focus: #2b2119;
+
+  /* Status. Each is a text colour and the wash it sits on. */
+  --color-wait-ink: #7c4b00;
+  --color-wait-wash: #f0d8a8;
+  --color-good-ink: #1b6438;
+  --color-good-wash: #d3e5ca;
+  --color-bad-ink: #9e2f2b;
+  --color-bad-wash: #eed2c7;
+
+  /* Discipline tints. Desaturated on purpose: they identify a class at a glance
+     on the timetable and must never compete with a status chip beside them. */
+  --color-yoga: #6e7d61;
+  --color-cycling: #556582;
+  --color-dance: #826076;
+  --color-pilates: #807054;
+  --color-discipline: #7f8189;
+
+  /* Two families, and the split is by job rather than by taste.
+
+     Archivo does the work: every table, label, figure and control. It carries a
+     width axis, which is what lets the timetable's time column and the headline
+     figures tighten without a third typeface.
+
+     The display face is **Tiempos Headline**, and it is named first in the stack
+     below even though it is not installed: it is a licensed family from Klim and
+     cannot be a dependency. `styles/tiempos.css` holds the @font-face blocks,
+     commented out, with the three lines of instruction for switching them on.
+     The moment the files exist it takes over everything, with nothing else to
+     change.
+
+     Until then the stack falls to **Newsreader** — the closest free face in
+     character: a contemporary, screen-first serif in the same Times-derived
+     lineage. Its width is the point. Three faces were tried before it and each
+     failed differently, which is worth keeping straight: Bodoni Moda read as
+     thin at any weight, because a Didone's character *is* the contrast between
+     thick stems and hairline joins and there was nothing to fix. Bricolage
+     Grotesque fixed the weight and overshot into idiosyncrasy. Instrument Serif
+     was elegant and *narrow*, which — with negative tracking on top of it — is
+     what made the headings look squeezed. Newsreader is generous in width, and
+     the tracking is now zero.
+
+     The pair stays distinct: Archivo is a neutral sans at 14px doing all the
+     work; this is a serif at 28px and above appearing once or twice a screen. */
+  --font-sans:
+    'Archivo Variable', 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-display:
+    'Tiempos Headline', 'Newsreader Variable', 'Newsreader', Georgia,
+    'Times New Roman', serif;
+
+  /* Bringhurst's classical sequence, with 14px as the base. Named by their pixel
+     size because a scale you have to decode is a scale people round off. */
+  --text-11: 11px;
+  --text-11--line-height: 1.4;
+  --text-12: 12px;
+  --text-12--line-height: 1.45;
+  --text-14: 14px;
+  --text-14--line-height: 1.45;
+  --text-16: 16px;
+  --text-16--line-height: 1.4;
+  --text-21: 21px;
+  --text-21--line-height: 1.35;
+  --text-36: 36px;
+  --text-36--line-height: 1.12;
+
+  /* The sequence continues past 36 for display use only: a page title in the
+     app, and the landing page's headings. The hero sets its own fluid size, so
+     the sequence stops here rather than declaring a step nothing uses. */
+  --text-28: 28px;
+  --text-28--line-height: 1.32;
+  --text-44: 44px;
+  --text-44--line-height: 1.18;
+
+  /* The weight scale, shifted up a step.
+
+     Archivo's 400 is a light regular, and on a warm light ground it reads as
+     thin rather than as quiet. Both families here are variable, so the fix is a
+     real 450 rather than a fake bold: the whole scale moves together and the
+     hierarchy between body, label and figure is preserved exactly. Raising only
+     the body would have collapsed the gap to `medium` and flattened it.
+
+     These override Tailwind's own font-weight values, so `font-medium` and
+     `font-semibold` mean these numbers everywhere in the app. */
+  --font-weight-normal: 450;
+  --font-weight-medium: 540;
+  --font-weight-semibold: 620;
+
+  /* Nothing above 10px. A 16px radius on a data table reads as a toy. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+
+  /* Only overlays get elevation. */
+  --shadow-overlay: 0 12px 32px -8px rgb(24 27 33 / 0.18), 0 0 0 1px rgb(24 27 33 / 0.06);
+
+  /* One orchestrated moment — the waitlist promotion — at 320ms. Everything a
+     person triggers themselves answers in 120ms. */
+  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* ---------------------------------------------------------------------------
+   Dark mode.
+
+   Not an inversion. Three things had to be redesigned rather than flipped:
+
+   1. **The status washes swap roles.** In light mode each status is dark text on
+      a pale tint (#8A5300 on #FBEFD3). Flipping that gives pale text on a pale
+      tint, which is unreadable — so the tint becomes deep and the text becomes
+      light, and the pair keeps the same contrast it had.
+   2. **Blue had to move.** `#1F4ED8` is a good focus ring on white and close to
+      invisible on a near-black page. The dark scheme lifts it to `#6C8CFF`,
+      which reads at about 6:1 against the page.
+   3. **The card is still a step toward the light.** In light mode the card is
+      whiter than the page; here it is lighter than the page. The *relationship*
+      is what says "this is a surface", not the absolute value — so it is
+      preserved rather than mirrored.
+
+   What did not change is the rule the whole interface rests on: chrome is
+   neutral and colour means something. The occupancy marks still fill with `ink`
+   and leave `mute` rings — both of which have simply changed ends of the scale,
+   so a full class still reads as a solid row of marks.
+
+   `color-scheme: dark` is load-bearing rather than a nicety: without it the
+   native date and time pickers these forms use render as white panels on a dark
+   page, and so do the scrollbars.
+   --------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+}
+
+/* `html[...]` rather than `:root[...]`: an attribute selector alone ties with
+   `:root` on specificity and would depend on source order to win. The theme is
+   always resolved to a concrete light or dark by the time it reaches the DOM —
+   "follow the system" is settled in JavaScript, so this file never has to
+   duplicate itself inside a media query.
+
+   This governs the tool only. The landing page declares its own palette and
+   stays light in either theme — see `.scheme-landing`. */
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* The same hue taken down, rather than a neutral dark with brown painted on:
+     the ground keeps its warmth, so the two schemes read as one idea at two
+     lightnesses instead of two different designs. */
+  --color-paper: #1a1511;
+  --color-card: #231c16;
+  --color-rule: #3d3228;
+  --color-hairline: #2a2219;
+  --color-mute: #5a4c3d;
+  --color-graphite: #a6927c;
+  /* Warm off-white rather than a cold one. Pure white on a brown ground reads as
+     a hole punched in it. */
+  --color-ink: #f1e8db;
+  --color-ink-hover: #fffaf2;
+  --color-row: #29211a;
+
+  --color-brass: #d2ac72;
+
+  --color-focus: #f1e8db;
+
+  --color-wait-ink: #e7be79;
+  --color-wait-wash: #3a2c13;
+  --color-good-ink: #8ace9b;
+  --color-good-wash: #1a3020;
+  --color-bad-ink: #ee9a8d;
+  --color-bad-wash: #3b1f1a;
+
+  /* Lifted a little: the same hues would sit too close to the card to separate
+     one discipline from another at 3px wide. */
+  --color-yoga: #9cac8c;
+  --color-cycling: #8395b4;
+  --color-dance: #b08aa2;
+  --color-pilates: #b39c74;
+  --color-discipline: #9a9da6;
+
+  /* A dark shadow on a dark page does nothing, so the elevation is carried by a
+     faint light ring around the edge instead. */
+  --shadow-overlay:
+    0 16px 40px -8px oklch(0% 0 0 / 0.62), 0 0 0 1px oklch(100% 0.02 80 / 0.09);
+}
+
+/* ---------------------------------------------------------------------------
+   The landing page's ground.
+
+   Beige, and light in both of the app's themes — the landing page does not
+   follow the toggle. Somebody arriving has no relationship with this product
+   yet, and the first thing they see should be the thing it was designed to be
+   rather than whatever their laptop decided at dusk.
+
+   Four layers, and none of them is a flat fill:
+
+   1. **A base that shifts**, and shifts on an angle — 168°, so nothing about the
+      ground lines up with the edges of the screen.
+   2. **A light source.** A warm near-white pool in the upper right, where the
+      headline is. On a dark ground a pool like this adds light; on a light one it
+      has to be almost white to read at all, which is why it is the only layer
+      here that lightens.
+   3. **Two tints that darken.** Amber low on the left and one cool violet
+      through the middle. The cool note is doing the same job it does on any
+      stone: warmth alone reads as a flat wash, and it is the cold counterpoint
+      that makes the eye see depth.
+   4. **Grain**, over everything including the type — a shade heavier than it
+      was on the dark ground, because on beige it reads as paper rather than as
+      noise, and paper is what this should feel like.
+
+   Everything quiet is sized against the extremes rather than the middle, and on
+   a light ground the danger inverts: text gets *easier* where the tints darken
+   the beige, while the rules and hairlines are the ones that drown. Both ends
+   were checked. The first attempt failed twice in each direction — the hairline
+   at 1.06 where the tints pool, then secondary text at 4.28 in the same place
+   once the rules were fixed.
+   --------------------------------------------------------------------------- */
+
+.scheme-landing {
+  color-scheme: light;
+
+  /* Both are load-bearing. `body` sets `color: var(--color-ink)`, and a custom
+     property in a value resolves *at the element that declares it* — so in dark
+     mode the children here would inherit the dark theme's ink and vanish. */
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+
+  background-image: linear-gradient(168deg, #eee3d0 0%, #e6d9c2 52%, #dbcaae 100%);
+  background-repeat: no-repeat;
+
+  /* Declared in full rather than inherited, because this page is light even when
+     the app is dark. The values that differ from the app's light theme are the
+     quiet ones, and they differ because the tint pools darken the ground beneath
+     them: rule, hairline and mute are each a step deeper than the tool's, and
+     graphite and brass a step deeper again so they still hold where the ground
+     is darkest. */
+  --color-paper: #e6d9c2;
+  --color-card: #f3ead9;
+  --color-row: #ded0b6;
+  --color-rule: #b8a181;
+  --color-hairline: #c8b596;
+  --color-mute: #9c8664;
+  --color-graphite: #5b4b39;
+  --color-ink: #2b2119;
+  --color-ink-hover: #3c2f23;
+  --color-brass: #85632c;
+
+  /* A shade deeper than the tool's, for the same reason as graphite and brass:
+     the tint pools darken the ground under it. */
+  --color-wait-ink: #734500;
+  --color-wait-wash: #f0d8a8;
+  --color-good-ink: #1b6438;
+  --color-good-wash: #d9e9d2;
+  --color-bad-ink: #9e2f2b;
+  --color-bad-wash: #f2d8cf;
+
+  --color-yoga: #6e7d61;
+  --color-cycling: #556582;
+  --color-dance: #826076;
+  --color-pilates: #807054;
+}
+
+/* Grain, above the content. `pointer-events: none` so it never eats a click; a
+   small tile repeated rather than one filter across the viewport, which would be
+   the expensive way to do it. It is also what dithers the gradients — which is
+   why none of the pools needs a blur. */
+.scheme-landing::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-14);
+    line-height: 1.45;
+    font-weight: var(--font-weight-normal);
+    /* `-webkit-font-smoothing: antialiased` used to be here and has been removed
+       deliberately. It is widely copied as a polish step and it does the
+       opposite of polish on a light ground: it drops subpixel rendering and
+       renders every glyph a shade lighter, which is most of the reason this
+       interface looked thin. The browser default is heavier and correct. */
+    /* Global, not per-component: every number in this app sits in a column with
+       another number, and proportional digits make those columns wobble. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* One visible focus treatment for the whole app, and the only place blue
+     appears on an interactive control. */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  table {
+    border-collapse: collapse;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* Durations are collapsed below, which would leave anything waiting to be
+       revealed stuck at its starting opacity. These two make the page simply
+       be there. */
+    .reveal,
+    .on-view {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* ---------------------------------------------------------------------
+     The landing page's entrance.
+
+     One orchestrated arrival rather than a dozen little effects: the pieces
+     come up in the order somebody reads them, 90ms apart, and then the page
+     is still. Scattered fade-and-slide on every section is the generated-page
+     default and it makes a page feel nervous.
+
+     `--reveal-delay` is what stages it. Each element sets its own and the
+     keyframes are shared, so the rhythm is one number per element rather than
+     a bespoke animation each.
+     --------------------------------------------------------------------- */
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .reveal {
+    animation: rise 760ms var(--ease-out-soft) both;
+    animation-delay: var(--reveal-delay, 0ms);
+  }
+
+  /* For something arriving on scroll: held invisible until it is seen, then the
+     same rise. The class is added by an observer; without JavaScript the
+     element simply stays visible, which is the right failure. */
+  .on-view {
+    opacity: 0;
+  }
+
+  .on-view.is-visible {
+    animation: rise 760ms var(--ease-out-soft) both;
+    animation-delay: var(--reveal-delay, 0ms);
+  }
+
+  /* The crystal's light. Three pools, three periods that never come back into
+     phase, each moving a little and brightening a little. Transform and opacity
+     only, so the browser can do it on the compositor and never repaints the
+     gradient underneath. */
+  @keyframes drift-a {
+    0%,
+    100% {
+      opacity: 0.62;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: translate3d(-3%, 2%, 0) scale(1.12);
+    }
+  }
+
+  @keyframes drift-b {
+    0%,
+    100% {
+      opacity: 0.7;
+      transform: translate3d(0, 0, 0) scale(1.06);
+    }
+    50% {
+      opacity: 1;
+      transform: translate3d(4%, -3%, 0) scale(1);
+    }
+  }
+
+  @keyframes drift-c {
+    0%,
+    100% {
+      opacity: 0.5;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      opacity: 0.85;
+      transform: translate3d(-2%, -4%, 0) scale(1.15);
+    }
+  }
+
+  .pool-a {
+    animation: drift-a 17s ease-in-out infinite;
+  }
+
+  .pool-b {
+    animation: drift-b 23s ease-in-out infinite;
+  }
+
+  .pool-c {
+    animation: drift-c 29s ease-in-out infinite;
+  }
+
+  /* The display face. A utility rather than a component prop because it is used
+     in exactly two kinds of place — a page title and a landing headline — and
+     both want to set their own size and weight around it. */
+  /* Both of these set a weight through `:where()`, which has zero specificity.
+     That gives each utility a sensible default while leaving any explicit
+     `font-medium` or `font-semibold` at a call site free to win — the opposite
+     of what would happen if the weight sat on the class itself, since these are
+     emitted after Tailwind's own utilities and would silently outrank them. */
+  :where(.display) {
+    /* 500. Newsreader carries a real weight axis, so this is an actual medium
+       rather than a synthesised one — and `font-synthesis: none` below means a
+       face that *lacks* the weight (Tiempos Headline Regular on its own, say)
+       fails visibly instead of quietly smearing its outlines into a fake bold. */
+    font-weight: 500;
+  }
+
+  :where(.tracked) {
+    /* Letterspacing makes small capitals look lighter than they are: the strokes
+       are the same and there is simply more ground between them. 11px caps at
+       the body weight read as a whisper. */
+    font-weight: var(--font-weight-medium);
+  }
+
+  .display {
+    font-family: var(--font-display);
+    /* Nothing at all, and that is the correction. Instrument Serif is already a
+       narrow face; pulling it tighter on top of its own proportions was most of
+       why the headings read as squeezed. A high-contrast serif needs its thin
+       joins to stay open, and negative tracking is the one thing guaranteed to
+       close them. */
+    letter-spacing: 0;
+    font-synthesis: none;
+    /* Newsreader carries an optical-size axis; without this every size renders
+       from one master and a 96px headline gets the proportions meant for 28px. */
+    font-optical-sizing: auto;
+  }
+
+  /* Tracked-out capitals, for navigation and the landing page's buttons only.
+     Normally the tell of a generated page, and used here because it is the
+     characteristic gesture of the reference this interface was designed
+     against — small, widely spaced, and never applied to running text or to a
+     table heading, where it would cost real legibility. */
+  .tracked {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+
+  /* The width axis, as a utility. Used on the timetable time column, dense cell
+     labels and headline figures — never on running text. */
+  .condensed {
+    font-stretch: 85%;
+  }
+
+  .semi-condensed {
+    font-stretch: 92%;
+  }
+
+  /* The promotion moment: a freed spot has just been given to the next person in
+     line, and the row says so once rather than blinking. */
+  @keyframes promoted {
+    0% {
+      background-color: var(--color-wait-wash);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+
+  .animate-promoted {
+    animation: promoted 320ms var(--ease-out-soft) 1;
+  }
+}

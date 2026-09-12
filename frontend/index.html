@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      /*
+        Resolve the colour scheme before the document paints.
+
+        Everything else about the theme lives in src/lib/theme.ts, but this one
+        piece cannot: by the time the bundle has parsed, the browser has already
+        painted a white page, and somebody who chose dark sees it flash. Inline
+        and synchronous in <head> is the only place that runs early enough.
+
+        Deliberately duplicated rather than imported, and kept to the two lines
+        that matter — read the stored choice, resolve "auto" against the system.
+        The wrapping try/catch is because localStorage throws outright in a
+        private window rather than returning null.
+      */
+      try {
+        var stored = localStorage.getItem('mornington.theme')
+        var dark =
+          stored === 'dark' ||
+          ((stored === null || stored === 'auto') &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light'
+      }
+    </script>
+    <title>Mornington Studio</title>
+    <meta name="description" content="Class scheduling, memberships and bookings for the studio front desk." />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
