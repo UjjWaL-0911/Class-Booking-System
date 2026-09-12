@@ -52,20 +52,31 @@ class Slot(NamedTuple):
     instructor_email: str
 
 
-# The addresses are deliberately unchanged. They are printed on the sign-in page
-# and in SUBMISSION.md, and a reviewer who has already noted them down should not
-# have to learn a second set because the names beside them moved.
+# Two accounts demonstrate the role difference, and those two are the ones a
+# reviewer signs in with: `manager@` sees the whole studio, `aryan@` sees only the
+# classes they teach. Both the address and the name are kept in step on those two,
+# because an instructor called Aryan signing in as `priya@` is a puzzle on the
+# sign-in screen before it is anything else.
 #
-# Two of them therefore no longer echo their holder's first name — `marcus@` and
-# `elena@` are historical. The two that appear in the interface, `manager@` and
-# `priya@`, still read correctly.
+# `marcus@` and `elena@` are historical and no longer echo their holder's name.
+# They are left alone on purpose: nothing points a reviewer at them, they are not
+# printed anywhere, and renaming a login for tidiness is how a demo's credentials
+# stop matching the ones written down. `manager@` and `frontdesk@` name a desk
+# rather than a person, so they read correctly whoever is sitting at them.
+#
+# Everyone else keeps a distinct name. A studio with two people called the same
+# thing is a studio where you cannot tell which of them taught the class.
+#
+# Changing an address here means changing it in three other places, none of which
+# the type checker will catch: the sign-in page's demo panel, the landing page's
+# credentials list, and the summary this package prints when it finishes.
 STAFF = [
-    SeedUser("manager@studio.demo", "Anita Desai", UserRole.STAFF),
+    SeedUser("manager@studio.demo", "Ujjwal Khanna", UserRole.STAFF),
     SeedUser("frontdesk@studio.demo", "Rohan Iyer", UserRole.STAFF),
 ]
 
 INSTRUCTORS = [
-    SeedUser("priya@studio.demo", "Priya Raman", UserRole.INSTRUCTOR),
+    SeedUser("aryan@studio.demo", "Aryan Mehta", UserRole.INSTRUCTOR),
     SeedUser("marcus@studio.demo", "Arjun Nair", UserRole.INSTRUCTOR),
     SeedUser("elena@studio.demo", "Kavita Joshi", UserRole.INSTRUCTOR),
 ]
@@ -116,15 +127,15 @@ CLASSES = [
 # timetable rather than by luck.
 TIMETABLE = [
     Slot(0, dt.time(7, 0), "Power Spin", "Studio B", "marcus@studio.demo"),
-    Slot(0, dt.time(18, 0), "Vinyasa Flow", "Studio A", "priya@studio.demo"),
+    Slot(0, dt.time(18, 0), "Vinyasa Flow", "Studio A", "aryan@studio.demo"),
     Slot(1, dt.time(19, 0), "Salsa Basics", "The Loft", "elena@studio.demo"),
     Slot(2, dt.time(7, 0), "Power Spin", "Studio B", "marcus@studio.demo"),
-    Slot(2, dt.time(18, 30), "Reformer Pilates", "Studio A", "priya@studio.demo"),
+    Slot(2, dt.time(18, 30), "Reformer Pilates", "Studio A", "aryan@studio.demo"),
     Slot(3, dt.time(19, 0), "Salsa Basics", "The Loft", "elena@studio.demo"),
     Slot(4, dt.time(7, 0), "Power Spin", "Studio B", "marcus@studio.demo"),
-    Slot(4, dt.time(18, 0), "Vinyasa Flow", "Studio A", "priya@studio.demo"),
-    Slot(5, dt.time(10, 0), "Vinyasa Flow", "Studio A", "priya@studio.demo"),
-    Slot(5, dt.time(12, 0), "Reformer Pilates", "Studio A", "priya@studio.demo"),
+    Slot(4, dt.time(18, 0), "Vinyasa Flow", "Studio A", "aryan@studio.demo"),
+    Slot(5, dt.time(10, 0), "Vinyasa Flow", "Studio A", "aryan@studio.demo"),
+    Slot(5, dt.time(12, 0), "Reformer Pilates", "Studio A", "aryan@studio.demo"),
 ]
 
 WEEKS_OF_HISTORY = 8

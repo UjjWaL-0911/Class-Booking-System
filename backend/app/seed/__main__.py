@@ -80,7 +80,7 @@ async def _seed(reset: bool) -> int:
     print("\nSign in with any of these and the password below:")
     print("  manager@studio.demo    (staff)")
     print("  frontdesk@studio.demo  (staff)")
-    print("  priya@studio.demo      (instructor)")
+    print("  aryan@studio.demo      (instructor)")
     print("  marcus@studio.demo     (instructor)")
     print("  elena@studio.demo      (instructor)")
     print(f"\n  password: {DEMO_PASSWORD}")
