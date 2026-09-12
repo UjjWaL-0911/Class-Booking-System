@@ -116,17 +116,14 @@ export function SignInPage() {
           </Button>
         </form>
 
+        {/* No credentials on this screen, deliberately. A sign-in page that
+            prints a working account is a sign-in page nobody is really signing
+            in to — and the habit is worth keeping even for a demo, because the
+            same block copied into something real is a published password. The
+            demo accounts live in SUBMISSION.md, where a reviewer is already
+            looking and a search engine is not. */}
         <div className="mt-6 w-[168px]">
           <ThemeToggle />
-        </div>
-
-        {/* The demo accounts, on the screen that needs them. A reviewer opening a
-            deployed link should not have to find the README to get in. */}
-        <div className="mt-6 flex flex-col gap-1.5 px-1 text-11 text-graphite">
-          <p className="font-medium text-ink">Demo accounts</p>
-          <p>manager@studio.demo and frontdesk@studio.demo are studio staff.</p>
-          <p>priya@studio.demo teaches, and sees only her own classes.</p>
-          <p>The password for all of them is StudioDemo!2026</p>
         </div>
       </div>
     </div>

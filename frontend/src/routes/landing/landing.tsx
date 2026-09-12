@@ -129,9 +129,14 @@ function Hero({
         className="reveal relative mx-auto flex max-w-[1220px] items-center justify-between px-8 py-8 lg:px-14"
         style={{ '--reveal-delay': '60ms' } as CSSProperties}
       >
+        {/* The wordmark is the largest thing in this bar by a long way, and it
+            should be: everything beside it is a signpost, and this is the name.
+            It is also where the intro animation lands — the flight is measured
+            at both ends, so changing this size changes how far the name travels
+            and nothing else has to be touched. */}
         <span
           ref={markRef}
-          className="display text-28 transition-opacity duration-200"
+          className="display text-36 leading-none transition-opacity duration-200 sm:text-44"
           style={{ opacity: arrived ? 1 : 0 }}
         >
           Mornington
@@ -214,35 +219,23 @@ function Hero({
  *
  * This closed with a headline and a paragraph about the demo data, which was a
  * third piece of persuasion after two sections of it. By the time somebody has
- * read this far they have decided; what they need is the door and the keys, not
- * another sentence.
+ * read this far they have decided; what they need is the door.
+ *
+ * It also carried the demo email addresses and their password, which is the one
+ * thing a public page of a live product would never print. They are in
+ * SUBMISSION.md instead — the same information, in the place a reviewer is
+ * already reading and a crawler is not.
  */
 function Closing({ door }: { door: Door }) {
   return (
     <section className="mx-auto max-w-[1220px] px-8 pb-32 pt-8 lg:px-14">
       <div className="border-t border-rule pt-16">
-        <div className="flex flex-wrap items-center gap-10">
-          <Link
-            to={door.to}
-            className="tracked border border-brass px-9 py-4 text-11 text-ink transition-colors duration-[120ms] hover:bg-brass hover:text-paper"
-          >
-            Open the studio
-          </Link>
-          <dl className="flex flex-wrap gap-x-10 gap-y-3 text-12">
-            <div className="flex flex-col gap-1">
-              <dt className="tracked text-11 text-graphite">Staff</dt>
-              <dd>manager@studio.demo</dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="tracked text-11 text-graphite">Instructor</dt>
-              <dd>priya@studio.demo</dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="tracked text-11 text-graphite">Password</dt>
-              <dd>StudioDemo!2026</dd>
-            </div>
-          </dl>
-        </div>
+        <Link
+          to={door.to}
+          className="tracked inline-block border border-brass px-9 py-4 text-11 text-ink transition-colors duration-[120ms] hover:bg-brass hover:text-paper"
+        >
+          Open the studio
+        </Link>
       </div>
     </section>
   )
