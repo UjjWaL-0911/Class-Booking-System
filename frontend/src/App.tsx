@@ -15,6 +15,7 @@ import { SessionDetailPage } from '@/routes/session-detail'
 import { BookingsPage } from '@/routes/bookings'
 import { BookingHistoryPage } from '@/routes/booking-history'
 import { MembersPage } from '@/routes/members'
+import { PeoplePage } from '@/routes/people'
 import { ClassesPage } from '@/routes/classes'
 import { ReportsPage } from '@/routes/reports'
 
@@ -48,6 +49,7 @@ const router = createBrowserRouter([
           { path: '/app/bookings/:bookingId', element: <BookingHistoryPage /> },
           { path: routes.members, element: <MembersPage /> },
           { path: routes.classes, element: <ClassesPage /> },
+          { path: routes.people, element: <PeoplePage /> },
           { path: routes.reports, element: <ReportsPage /> },
         ],
       },

@@ -30,6 +30,8 @@ export const LIMITS = {
   bookingNote: 1000,
   /** rooms.name — min_length=1, max_length=100 */
   roomName: 100,
+  /** users.password — min_length=12 */
+  password: 12,
   /** duration_min — gt=0, le=600 */
   duration: { min: 1, max: 600 },
   /** capacity — gt=0, le=1000 */
@@ -73,6 +75,18 @@ export function emailFormat(value: string): Rule {
 }
 
 /** Counts the trimmed value, since that is what gets sent. */
+/**
+ * Long enough to be worth setting.
+ *
+ * Length only, and no composition rules — no required symbol, no forced digit.
+ * Those push people towards `Passw0rd!` and away from the long ordinary phrases
+ * that are actually harder to guess, and the server does not ask for them either.
+ */
+export function minLength(value: string, min: number, noun: string): Rule {
+  if (value.length === 0 || value.length >= min) return null
+  return `${noun} needs at least ${min} characters. This one has ${value.length}.`
+}
+
 export function maxLength(value: string, max: number): Rule {
   const length = value.trim().length
   return length > max ? `${max} characters at most. This is ${length}.` : null

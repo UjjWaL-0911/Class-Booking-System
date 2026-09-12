@@ -7,7 +7,6 @@ import type {
   Session,
   SessionCreate,
   SessionUpdate,
-  User,
   Uuid,
 } from './types'
 
@@ -80,7 +79,3 @@ export function generateSessions(body: RecurrenceCreate): Promise<GenerationRepo
   return request<GenerationReport>('/sessions/generate', { method: 'POST', body })
 }
 
-/** Everyone who can be put in front of a class — active accounts, either role. */
-export function listTeachers(): Promise<User[]> {
-  return request<User[]>('/users')
-}

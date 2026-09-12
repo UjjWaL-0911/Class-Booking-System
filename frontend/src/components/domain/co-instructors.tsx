@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/field'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { useToast } from '@/components/ui/toast-context'
-import { useAddCoInstructor, useRemoveCoInstructor, useTeachers } from '@/hooks/use-sessions'
+import { useAddCoInstructor, useRemoveCoInstructor } from '@/hooks/use-sessions'
+import { useTeachers } from '@/hooks/use-users'
 import type { Session } from '@/api/types'
 
 /**

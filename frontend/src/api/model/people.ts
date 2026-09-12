@@ -4,6 +4,14 @@ import type { Instant, LocalDate, UserRole, Uuid } from './common'
 
 // --- auth -------------------------------------------------------------------
 
+/** Staff add colleagues; there is no public registration. See users.py. */
+export interface UserCreate {
+  email: string
+  full_name: string
+  role: UserRole
+  password: string
+}
+
 export interface User {
   id: Uuid
   email: string

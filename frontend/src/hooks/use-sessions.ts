@@ -6,7 +6,6 @@ import {
   generateSessions,
   getSession,
   listSessions,
-  listTeachers,
   removeCoInstructor,
   updateSession,
   type SessionQuery,
@@ -27,16 +26,6 @@ export function useSession(id: Uuid) {
   return useQuery({
     queryKey: keys.session(id),
     queryFn: () => getSession(id),
-  })
-}
-
-/** Everyone who can lead a class — active accounts of either role. */
-export function useTeachers() {
-  return useQuery({
-    queryKey: keys.teachers,
-    queryFn: listTeachers,
-    // A studio's staff list changes when somebody is hired. Ten minutes.
-    staleTime: 600_000,
   })
 }
 

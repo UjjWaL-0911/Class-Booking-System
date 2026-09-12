@@ -30,6 +30,11 @@ const LINKS = [
   { to: routes.bookings, label: 'Bookings' },
   { to: routes.members, label: 'Members' },
   { to: routes.classes, label: 'Classes' },
+  // Staff only, and hidden rather than disabled for an instructor. A link that
+  // leads to a 403 teaches somebody the tool is broken; one that is not there
+  // teaches them nothing at all, which is correct — this is not their job. The
+  // server refuses either way, which is the part that matters.
+  { to: routes.people, label: 'People', staffOnly: true },
   { to: routes.reports, label: 'Reports' },
 ]
 
@@ -66,7 +71,7 @@ export function Rail() {
         </div>
 
         <ul className="flex flex-col gap-1">
-          {LINKS.map((link) => (
+          {LINKS.filter((link) => !link.staffOnly || user.role === 'staff').map((link) => (
             <li key={link.to}>
               <NavLink
                 to={link.to}

@@ -17,6 +17,29 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1)
 
 
+class UserCreate(BaseModel):
+    """A new staff or instructor account, created by a member of staff.
+
+    There is no public registration, and that is the decision this schema encodes.
+    A studio's back office is not something people join by finding the URL: the
+    account already implies a relationship with the studio, and the person who can
+    vouch for it is the one already inside. Self-registration would also let the
+    applicant choose their own ``role``, which would make goal 1's server-side
+    enforcement decorative.
+
+    The password is set by whoever creates the account and handed over in person.
+    That is a genuine limitation rather than a design: there is no mail sender, so
+    an invitation link has nothing to travel on. The twelve-character minimum is
+    the compensation — an initial password that cannot yet be changed from inside
+    the app should not also be short.
+    """
+
+    email: EmailStr
+    full_name: str = Field(min_length=1, max_length=200)
+    role: UserRole
+    password: str = Field(min_length=12)
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

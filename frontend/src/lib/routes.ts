@@ -18,6 +18,7 @@ export const routes = {
   bookings: `${APP}/bookings`,
   members: `${APP}/members`,
   classes: `${APP}/classes`,
+  people: `${APP}/people`,
   reports: `${APP}/reports`,
 
   session: (id: string) => `${APP}/sessions/${id}`,

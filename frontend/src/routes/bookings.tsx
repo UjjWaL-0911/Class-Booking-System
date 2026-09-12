@@ -197,10 +197,9 @@ export function BookingsPage() {
                   <Td className="text-graphite">{formatInstant(item.booked_at, timeZone)}</Td>
                   <Td className="text-right">
                     <span className="inline-flex items-center gap-4">
-                      {/* Exactly the server's rule, not a looser one: staff only,
-                          and only while the booking is still active. A settled or
-                          already-cancelled booking has no cancel to offer, and
-                          offering one would be a button that fails. */}
+                      {/* Exactly the server's rule, not a looser one: staff
+                          only, and only while the booking is still active —
+                          offering more would be a button that fails. */}
                       {isStaff && (item.status === 'booked' || item.status === 'waitlisted') && (
                         <button
                           type="button"
@@ -218,11 +217,9 @@ export function BookingsPage() {
                           Cancel
                         </button>
                       )}
-                      {/* A permanent underline, not one that appears on hover.
-                          This is the way into goal 9's timeline and it was a grey
-                          word at the edge of a wide table — the same mistake the
-                          class titles made, where something genuinely clickable
-                          read as a label because nothing said otherwise. */}
+                      {/* Underlined always, not on hover: this is the way into
+                          goal 9's timeline and a grey word at the edge of a wide
+                          table read as a label rather than a link. */}
                       <Link
                         to={routes.bookingHistory(item.id)}
                         className="text-12 text-graphite underline decoration-1 underline-offset-4 hover:text-ink"
