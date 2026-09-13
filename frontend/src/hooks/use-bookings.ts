@@ -22,9 +22,15 @@ export function useBookings(query: BookingQuery) {
   return useQuery({
     queryKey: keys.bookings(query),
     queryFn: () => listBookings(query),
-    // Keeps the previous page on screen while the next one loads, so paging
-    // through a list does not blank the table on every click.
-    placeholderData: (previous) => previous,
+    // No `placeholderData`. Keeping the previous result on screen while the next
+    // one loads reads as polish on a laptop, where the gap is 3ms and invisible.
+    // Against a real database it is a lie: the controls say one thing and the
+    // rows below them describe something else, for as long as the round trip
+    // takes. The moment the query key changes, what is on screen is answering a
+    // question nobody asked any more — so it goes, and the skeleton says so.
+    //
+    // The searches that feed these keys are debounced, so this costs one loading
+    // state per settled search rather than one per keystroke.
   })
 }
 
