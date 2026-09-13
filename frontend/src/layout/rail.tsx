@@ -46,7 +46,7 @@ export function Rail() {
   return (
     <nav
       aria-label="Sections"
-      className="flex w-[232px] shrink-0 flex-col justify-between px-7 py-10"
+      className="flex w-[304px] shrink-0 flex-col justify-between px-7 py-10"
     >
       <div className="flex flex-col gap-12">
         <div>
@@ -61,11 +61,9 @@ export function Rail() {
               two-line block with a different meaning on each line. */}
           <Link
             to={routes.landing}
-            className="display inline-block text-28 leading-[1.05] transition-colors duration-[120ms] hover:text-ink"
+            className="display inline-block whitespace-nowrap text-28 transition-colors duration-[120ms] hover:text-ink"
           >
-            Mornington
-            <br />
-            Studios
+            Mornington Studios
           </Link>
           <p className="tracked mt-1 text-11 text-graphite">
             {user.role === 'staff' ? 'Front desk' : 'Instructor'}
