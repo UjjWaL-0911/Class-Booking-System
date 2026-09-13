@@ -17,29 +17,21 @@ import type { Session } from '@/api/types'
 /**
  * Edit a scheduled session (goal 3).
  *
- * A separate dialog from the one that schedules a class, rather than one
- * component with an `editing` flag, because the two forms are not the same form.
- * Scheduling picks a class; editing cannot — a session belongs to exactly one
- * class for its whole life, and moving it to another would silently relocate its
- * bookings. So the class is shown here as a fact, not a field.
+ * A separate dialog from the one that schedules a class, not one component with
+ * an `editing` flag: scheduling picks a class, editing cannot. A session belongs
+ * to one class for its whole life, and moving it would relocate its bookings — so
+ * the class is shown here as a fact rather than a field.
  *
- * Three of these fields do more than they look like they do:
+ * Three fields do more than they look like they do. **The instructor** is how a
+ * substitute is arranged — the exclusion constraint refuses one already teaching
+ * in that window, so the form does not have to pretend to know. **Capacity up**
+ * fills the new seats from the waitlist in the same transaction, and the toast
+ * says how many moved. **Capacity down** below the people already booked is
+ * refused with a sentence naming the count, so the occupancy is shown beside the
+ * field to make that refusal predictable.
  *
- * **The instructor** is how a substitute is arranged. The server refuses a
- * substitute who is already teaching in that window — the exclusion constraint
- * does it, so the form does not have to pretend to know.
- *
- * **Capacity up** fills the new seats from the waitlist, in the same transaction,
- * and the toast says how many moved. That is not a side effect worth hiding: the
- * person raising the number wants to know whether anybody got in.
- *
- * **Capacity down** below the people already booked is refused by the server with
- * a sentence naming the count. The form shows the current occupancy beside the
- * field so the refusal is predictable rather than surprising.
- *
- * `version` travels with the request. Two people editing the same session from
- * two stale forms means the second gets a 409 rather than quietly overwriting the
- * first.
+ * `version` travels with the request: two people editing from two stale forms
+ * means the second gets a 409 rather than quietly overwriting the first.
  */
 export function EditSessionDialog({
   session,
@@ -62,9 +54,8 @@ export function EditSessionDialog({
   const [duration, setDuration] = useState(String(session.duration_min))
   const [capacity, setCapacity] = useState(String(session.capacity))
 
-  // Instructor and room start populated and cannot be blank — but the select
-  // carries an empty option, so somebody can blank them. They get the same rules
-  // the scheduling form uses rather than being trusted because they arrived full.
+  // The selects carry an empty option, so instructor and room can be blanked even
+  // though they arrive populated. Same rules as the scheduling form.
   const form = useForm({
     session_date: dateChosen(date, 'a date'),
     start_time: dateChosen(time, 'a start time'),
@@ -75,9 +66,8 @@ export function EditSessionDialog({
   })
   const { reset: resetForm } = form
 
-  // Reset when the dialog opens rather than on every render: the session refetches
-  // underneath while this is closed, and reading props straight into state would
-  // strand a half-typed edit or silently replace one.
+  // Reset on open, not on every render: the session refetches underneath while
+  // this is closed, and reading props into state would strand a half-typed edit.
   useEffect(() => {
     if (!open) return
     setDate(session.session_date)
@@ -91,7 +81,6 @@ export function EditSessionDialog({
 
   const taken = spotsTaken(session)
   const raising = Number(capacity) > session.capacity
-
   function close() {
     onOpenChange(false)
     updateSession.reset()
@@ -113,8 +102,8 @@ export function EditSessionDialog({
       },
       {
         onSuccess: (saved) => {
-          // The server promotes inside the same transaction, so the response
-          // already knows who moved up. Saying so is the point of raising it.
+          // The server promotes in the same transaction, so the response already
+          // knows who moved up. Saying so is the point of raising it.
           const promoted = saved.booked_count - session.booked_count
           notify('Saved', {
             tone: promoted > 0 ? 'good' : 'neutral',
@@ -132,7 +121,6 @@ export function EditSessionDialog({
   const error = updateSession.error
   const message =
     error instanceof ApiError ? error.message : error ? 'Could not save that session.' : null
-
   return (
     <Dialog
       open={open}

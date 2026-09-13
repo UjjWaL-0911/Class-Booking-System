@@ -56,34 +56,15 @@ export function LandingPage() {
 
   return (
     <div className="scheme-landing relative min-h-screen">
-      {/* The light, in three pools. One lightens and two darken, which is the
-          only way a light ground can have a light *source* — and all three are
-          sized by arithmetic rather than by eye, so that neither the brightest
-          nor the darkest place they make can drop anything below its floor. */}
-      {/* The only `overflow-hidden` on this page, and it belongs here: the pools
-          are positioned past the edges on purpose and this is what stops them
-          widening the document. There were two more — on the page root and on
-          the header — left over from when the light was a child of each. They
-          contained nothing by then except the headlines, which they cut. */}
+      {/* The light, in three pools: one lightens, two darken, all sized by
+          arithmetic so neither the brightest nor the darkest place they make can
+          drop anything below its contrast floor. The `overflow-hidden` belongs
+          here and only here — the pools sit past the edges on purpose, and this
+          is what stops them widening the document. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <span
-          className="pool-a absolute -right-[12%] -top-[24%] h-[940px] w-[940px] rounded-full"
-          style={{
-            background: 'radial-gradient(circle, rgb(255 249 236 / 0.55) 0%, transparent 62%)',
-          }}
-        />
-        <span
-          className="pool-b absolute -bottom-[16%] -left-[18%] h-[840px] w-[840px] rounded-full"
-          style={{
-            background: 'radial-gradient(circle, rgb(198 150 84 / 0.10) 0%, transparent 64%)',
-          }}
-        />
-        <span
-          className="pool-c absolute left-[24%] top-[36%] h-[780px] w-[780px] rounded-full"
-          style={{
-            background: 'radial-gradient(circle, rgb(120 125 175 / 0.07) 0%, transparent 66%)',
-          }}
-        />
+        {POOLS.map((pool) => (
+          <span key={pool.className} className={pool.className} style={{ background: pool.background }} />
+        ))}
       </div>
 
       <StudioIntro targetRef={markRef} onDone={land}>
@@ -108,6 +89,22 @@ export function LandingPage() {
   )
 }
 
+/** Three light sources, sized by arithmetic rather than by eye. */
+const POOLS = [
+  {
+    className: 'pool-a absolute -right-[12%] -top-[24%] h-[940px] w-[940px] rounded-full',
+    background: 'radial-gradient(circle, rgb(255 249 236 / 0.55) 0%, transparent 62%)',
+  },
+  {
+    className: 'pool-b absolute -bottom-[16%] -left-[18%] h-[840px] w-[840px] rounded-full',
+    background: 'radial-gradient(circle, rgb(198 150 84 / 0.10) 0%, transparent 64%)',
+  },
+  {
+    className: 'pool-c absolute left-[24%] top-[36%] h-[780px] w-[780px] rounded-full',
+    background: 'radial-gradient(circle, rgb(120 125 175 / 0.07) 0%, transparent 66%)',
+  },
+]
+
 interface Door {
   to: string
   label: string
@@ -129,11 +126,9 @@ function Hero({
         className="reveal relative mx-auto flex max-w-[1220px] items-center justify-between px-8 py-8 lg:px-14"
         style={{ '--reveal-delay': '60ms' } as CSSProperties}
       >
-        {/* The wordmark is the largest thing in this bar by a long way, and it
-            should be: everything beside it is a signpost, and this is the name.
-            It is also where the intro animation lands — the flight is measured
-            at both ends, so changing this size changes how far the name travels
-            and nothing else has to be touched. */}
+        {/* The largest thing in this bar, and it should be: everything beside it
+            is a signpost, and this is the name. Also where the intro lands — the
+            flight is measured at both ends, so resizing it needs nothing else. */}
         <span
           ref={markRef}
           className="display text-36 leading-none transition-opacity duration-200 sm:text-44"
@@ -225,14 +220,11 @@ function Hero({
 /**
  * The way in, and nothing else.
  *
- * This closed with a headline and a paragraph about the demo data, which was a
- * third piece of persuasion after two sections of it. By the time somebody has
- * read this far they have decided; what they need is the door.
- *
- * It also carried the demo email addresses and their password, which is the one
- * thing a public page of a live product would never print. They are in
- * SUBMISSION.md instead — the same information, in the place a reviewer is
- * already reading and a crawler is not.
+ * This closed with a headline and a paragraph of persuasion after two sections of
+ * it; by the time somebody has read this far they have decided. It also carried
+ * the demo addresses and password, which a public page of a live product would
+ * never print — those are in SUBMISSION.md, where a reviewer reads and a crawler
+ * does not.
  */
 function Closing({ door }: { door: Door }) {
   return (
