@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Disciplines } from './disciplines'
 import { HeroDemo } from './hero-demo'
 import { useSession } from '@/hooks/use-auth'
-import { Replaces } from './replaces'
+import { Features } from './features'
 import { StudioIntro } from './studio-intro'
 import { routes } from '@/lib/routes'
 
@@ -80,7 +80,7 @@ export function LandingPage() {
         {arrived && (
           <>
             <Disciplines />
-            <Replaces />
+            <Features />
             <Closing door={door} />
           </>
         )}
@@ -141,10 +141,10 @@ function Hero({
           style={{ opacity: arrived ? 1 : 0 }}
         >
           <a
-            href="#what-it-replaces"
+            href="#features"
             className="tracked hidden text-11 text-graphite transition-colors duration-[120ms] hover:text-ink sm:block"
           >
-            What it replaces
+            Features
           </a>
           {/* The one link on this page that shows the product rather than
               describing it. Worth a place in the nav for that reason alone. */}
@@ -192,7 +192,7 @@ function Hero({
               Open the studio
             </Link>
 
-            <a href="#what-it-replaces" className="group flex items-center gap-4">
+            <a href="#features" className="group flex items-center gap-4">
               <span className="flex size-11 items-center justify-center rounded-full border border-rule transition-colors duration-[120ms] group-hover:border-ink">
                 <svg width="9" height="11" viewBox="0 0 9 11" fill="currentColor" aria-hidden="true">
                   <path d="M0 0.5v10l9-5z" />

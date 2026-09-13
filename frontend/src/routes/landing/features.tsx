@@ -5,11 +5,14 @@ import { cn } from '@/lib/cn'
 /**
  * What the software is *for*, stated as the three paper things it takes away.
  *
- * Not a feature list. The brief describes a studio with a sign-up sheet on a
- * clipboard and a membership binder behind the desk, and every one of these is a
- * specific failure of those objects rather than a capability with a tick beside
- * it. "Automatic waiting lists" is a feature; "the sheet cannot tell anyone a
- * place opened up" is the reason somebody would want one.
+ * Labelled "Features", written as replacements. The heading is the word a visitor
+ * expects to find in a nav bar; the content underneath is deliberately not a list
+ * of capabilities with ticks beside them. The brief describes a studio with a
+ * sign-up sheet on a clipboard and a membership binder behind the desk, and each
+ * item here is a specific failure of one of those objects. "Automatic waiting
+ * lists" is a feature; "the sheet cannot tell anyone a place opened up" is the
+ * reason somebody would want one — so the label invites people in and the writing
+ * says something once they are there.
  *
  * Numbered, because a numbered marker is only honest when the content is a
  * sequence or a set — and this is a closed set of three, counted deliberately.
@@ -32,16 +35,16 @@ const ITEMS = [
   },
 ]
 
-export function Replaces() {
+export function Features() {
   const { ref, shown } = useOnView<HTMLElement>()
 
   return (
     <section
       ref={ref}
-      id="what-it-replaces"
+      id="features"
       className="mx-auto max-w-[1220px] px-8 py-32 lg:px-14"
     >
-      <p className="tracked text-11 text-graphite">What it replaces</p>
+      <p className="tracked text-11 text-graphite">Features</p>
 
       <div className="mt-16 flex flex-col gap-20">
         {ITEMS.map((item, index) => (
