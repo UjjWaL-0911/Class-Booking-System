@@ -39,11 +39,18 @@ class TestListUsers:
         assert by_email[accounts["instructor"]]["role"] == "instructor"
 
     async def test_no_password_hash_is_returned(self, staff: AsyncClient) -> None:
+        """The exact key set, not the absence of `password_hash`.
+
+        Asserting one missing field would pass the day a second one appears.
+        Pinning the whole set means widening this response is a failing test
+        rather than a leak — which is how `session_rate_minor` arriving showed up
+        here, on a list that is staff-only precisely because it now carries one.
+        """
         response = await staff.get("/api/v1/users")
 
         assert response.status_code == 200
         for row in response.json():
-            assert set(row) == {"id", "email", "full_name", "role"}
+            assert set(row) == {"id", "email", "full_name", "role", "session_rate_minor"}
 
     async def test_deactivated_accounts_are_left_out(
         self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
@@ -195,3 +202,120 @@ class TestCreateUser:
 
         assert stored != body["password"]
         assert stored.startswith("$argon2")
+
+
+class TestSessionRate:
+    """What a colleague is paid to lead one session.
+
+    The arithmetic is the payroll report's problem and is tested there. What
+    matters here is who may read a rate, who may set one, and that **null and zero
+    stay different** all the way through — "we have not agreed a rate" is a thing
+    somebody has to go and fix, and "unpaid" is a decision. A system that quietly
+    turns the first into the second underpays somebody without telling anybody.
+    """
+
+    async def test_the_rate_is_set_when_the_account_is_created(
+        self, staff: AsyncClient
+    ) -> None:
+        created = await staff.post("/api/v1/users", json=_person(session_rate_minor=250000))
+        assert created.status_code == 201, created.text
+
+        listed = {row["id"]: row for row in (await staff.get("/api/v1/users")).json()}
+
+        assert listed[created.json()["id"]]["session_rate_minor"] == 250000
+
+    async def test_a_new_account_may_have_no_rate_yet(self, staff: AsyncClient) -> None:
+        """The desk adding an instructor on Monday should not be blocked on a
+        number that has to come from whoever agrees rates."""
+        created = await staff.post("/api/v1/users", json=_person())
+        assert created.status_code == 201
+
+        listed = {row["id"]: row for row in (await staff.get("/api/v1/users")).json()}
+
+        assert listed[created.json()["id"]]["session_rate_minor"] is None
+
+    async def test_staff_can_set_and_change_it(self, staff: AsyncClient) -> None:
+        created = (await staff.post("/api/v1/users", json=_person())).json()
+
+        first = await staff.patch(
+            f"/api/v1/users/{created['id']}", json={"session_rate_minor": 90000}
+        )
+        second = await staff.patch(
+            f"/api/v1/users/{created['id']}", json={"session_rate_minor": 110000}
+        )
+
+        assert first.json()["session_rate_minor"] == 90000
+        assert second.status_code == 200
+        assert second.json()["session_rate_minor"] == 110000
+
+    async def test_null_clears_it_and_is_not_zero(self, staff: AsyncClient) -> None:
+        """Both directions of the distinction, in one test, because it is the one
+        thing about this field that is easy to get wrong."""
+        created = (await staff.post("/api/v1/users", json=_person(session_rate_minor=5000))).json()
+
+        cleared = await staff.patch(
+            f"/api/v1/users/{created['id']}", json={"session_rate_minor": None}
+        )
+        zeroed = await staff.patch(
+            f"/api/v1/users/{created['id']}", json={"session_rate_minor": 0}
+        )
+
+        assert cleared.json()["session_rate_minor"] is None
+        assert zeroed.json()["session_rate_minor"] == 0
+
+    @pytest.mark.parametrize("rate", [-1, 2_147_483_648])
+    async def test_a_rate_outside_the_column_is_refused(
+        self, staff: AsyncClient, rate: int
+    ) -> None:
+        """A negative rate is not a discount, it is a typo — and a slipped decimal
+        past the column's ceiling should be a 422 that says so, not an overflow the
+        driver reports as a 500."""
+        created = (await staff.post("/api/v1/users", json=_person())).json()
+
+        response = await staff.patch(
+            f"/api/v1/users/{created['id']}", json={"session_rate_minor": rate}
+        )
+
+        assert response.status_code == 422
+
+    async def test_an_instructor_cannot_read_a_rate_here(
+        self, instructor: AsyncClient
+    ) -> None:
+        """They read their own on the reports screen, scoped by the query. This
+        list is every colleague's, which is a different thing."""
+        assert (await instructor.get("/api/v1/users")).status_code == 403
+
+    async def test_an_instructor_cannot_set_one(
+        self, staff: AsyncClient, instructor: AsyncClient
+    ) -> None:
+        created = (await staff.post("/api/v1/users", json=_person())).json()
+
+        response = await instructor.patch(
+            f"/api/v1/users/{created['id']}", json={"session_rate_minor": 999999}
+        )
+
+        assert response.status_code == 403
+
+    async def test_signing_in_does_not_hand_back_a_rate(
+        self, staff: AsyncClient, api: AsyncClient
+    ) -> None:
+        """The reason the field hangs off a subclass rather than `UserOut`: sign-in
+        returns `UserOut` to every account on every login, and a model that never
+        had the field cannot leak it."""
+        body = _person(session_rate_minor=77000)
+        assert (await staff.post("/api/v1/users", json=body)).status_code == 201
+
+        signed_in = await api.post(
+            "/api/v1/auth/login",
+            json={"email": body["email"], "password": body["password"]},
+        )
+
+        assert signed_in.status_code == 200, signed_in.text
+        assert "session_rate_minor" not in signed_in.json()["user"]
+
+    async def test_an_unknown_person_is_a_404(self, staff: AsyncClient) -> None:
+        response = await staff.patch(
+            f"/api/v1/users/{uuid.uuid4()}", json={"session_rate_minor": 100}
+        )
+
+        assert response.status_code == 404

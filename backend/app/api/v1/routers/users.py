@@ -18,26 +18,36 @@ names an instructor assumes an instructor already exists, and until this endpoin
 the only thing that could produce one was the seed script. A studio that hires
 somebody in March had no way to tell the system.
 
-Staff only, both of them. Instructors do not schedule, and the names of colleagues
-are not something an endpoint should hand out more widely than the feature that
-needs them.
+Staff only, all three. Instructors do not schedule, the names of colleagues are
+not something an endpoint should hand out more widely than the feature that needs
+them, and a rate least of all — an instructor reads their own on the reports
+screen, which is scoped to them by the query rather than by this router.
 """
 
 from __future__ import annotations
+
+import uuid
 
 from fastapi import APIRouter, status
 
 from app.core.deps import Config, DbSession, StaffUser
 from app.schemas.auth import UserCreate, UserOut
+from app.schemas.user import TeacherOut, UserUpdate
 from app.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("", response_model=list[UserOut], summary="List people who can teach")
-async def list_users(db: DbSession, settings: Config, _: StaffUser) -> list[UserOut]:
+@router.get("", response_model=list[TeacherOut], summary="List people who can teach")
+async def list_users(db: DbSession, settings: Config, _: StaffUser) -> list[TeacherOut]:
+    """Every active account, with what each is paid to lead a session.
+
+    The rate rides along here rather than on ``UserOut``, which sign-in returns —
+    see ``schemas/user.py``. This endpoint is the one place a colleague's rate is
+    readable, and it is staff-only.
+    """
     users = await UserService(db, settings).list()
-    return [UserOut.model_validate(u) for u in users]
+    return [TeacherOut.model_validate(u) for u in users]
 
 
 @router.post(
@@ -58,3 +68,26 @@ async def create_user(
     user = await UserService(db, settings).create(payload)
     await db.commit()
     return UserOut.model_validate(user)
+
+
+@router.patch("/{user_id}", response_model=TeacherOut, summary="Set what a person is paid")
+async def update_user(
+    user_id: uuid.UUID,
+    payload: UserUpdate,
+    db: DbSession,
+    settings: Config,
+    _: StaffUser,
+) -> TeacherOut:
+    """Set or clear a session rate.
+
+    The only editable thing about an account, and the narrowness is deliberate:
+    ``UserUpdate`` says why name, email and role are not here.
+
+    No optimistic ``version`` check, unlike a session. Two people editing the same
+    session's capacity at the same moment is a real race with a wrong answer at the
+    end of it; two people setting the same instructor's rate is one person changing
+    their mind, and the last write is the one they meant.
+    """
+    user = await UserService(db, settings).set_rate(user_id, payload)
+    await db.commit()
+    return TeacherOut.model_validate(user)

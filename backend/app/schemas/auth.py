@@ -39,6 +39,12 @@ class UserCreate(BaseModel):
     role: UserRole
     password: str = Field(min_length=12)
 
+    # Optional, and its absence means "not decided yet" rather than "unpaid" —
+    # the desk adding an instructor on a Monday morning should not be blocked on
+    # a number that has to come from whoever agrees rates. Bounds and units are
+    # documented on ``schemas/user.UserUpdate``, which is where it is changed.
+    session_rate_minor: int | None = Field(default=None, ge=0, le=2_147_483_647)
+
 
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

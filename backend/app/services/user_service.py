@@ -13,15 +13,18 @@ somebody had no way to say so.
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
+from app.core.errors import NotFound
 from app.core.security import hash_password
 from app.models.user import User
 from app.schemas.auth import UserCreate
+from app.schemas.user import UserUpdate
 
 
 class UserService:
@@ -60,7 +63,32 @@ class UserService:
             full_name=payload.full_name.strip(),
             role=payload.role,
             password_hash=await hash_password(payload.password, self.settings),
+            session_rate_minor=payload.session_rate_minor,
         )
         self.db.add(user)
+        await self.db.flush()
+        return user
+
+    async def set_rate(self, user_id: uuid.UUID, payload: UserUpdate) -> User:
+        """Set or clear what a colleague is paid to lead one session.
+
+        **A rate has no history, and that is a limitation rather than a design.**
+        Changing it today changes what last month's payroll report says, because
+        the report multiplies sessions by the rate as it stands now. For a studio
+        whose rates change once a year that is the right trade — a rate history
+        with effective dates is a second table, a temporal join in the payroll
+        query, and a way to edit the past. It is the wrong trade the first time
+        somebody gives an instructor a raise mid-month and needs the old figure
+        back, and ``decisions.md`` records that as the point to revisit it.
+
+        Inactive accounts are refused along with missing ones, matching the list:
+        somebody who has left the studio is not a person to set a rate for, and
+        distinguishing the two cases in the error would say more than the caller
+        needs to know.
+        """
+        user = await self.db.get(User, user_id)
+        if user is None or not user.is_active:
+            raise NotFound("No such person.")
+        user.session_rate_minor = payload.session_rate_minor
         await self.db.flush()
         return user
