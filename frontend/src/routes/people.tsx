@@ -3,7 +3,6 @@ import { PersonDialog } from '@/components/domain/person-dialog'
 import { Button } from '@/components/ui/button'
 import { Panel } from '@/components/ui/panel'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/states'
-import { PersonCell, Table, Td, Th, Tr } from '@/components/ui/table'
 import { useCurrentUser } from '@/hooks/use-auth'
 import { useTeachers } from '@/hooks/use-users'
 import { Page, PageHeader } from '@/layout/app-shell'
@@ -88,31 +87,33 @@ function Group({
 
   return (
     <Panel>
-      <div className="flex items-baseline justify-between border-b border-rule pb-2">
+      <div className="flex items-baseline justify-between pb-1">
         <h2 className="text-12 font-medium text-graphite">{title}</h2>
         <span className="text-12 text-graphite">
           {people.length === 1 ? '1 person' : `${people.length} people`}
         </span>
       </div>
-      <Table>
-        <thead>
-          <tr>
-            <Th className="w-[60%]">Name</Th>
-            <Th className="w-[40%]">Signs in with</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {people.map((person) => (
-            <Tr key={person.id}>
-              <Td>
-                <PersonCell name={person.full_name} />
-                {person.id === me && <span className="ml-2 text-11 text-graphite">You</span>}
-              </Td>
-              <Td className="text-graphite">{person.email}</Td>
-            </Tr>
-          ))}
-        </tbody>
-      </Table>
+      {/* A list rather than a table, and no rules between the rows. Two fields
+          per person do not need a grid drawn around them, and a divider under
+          every name turns eight colleagues into a ledger. The columns still line
+          up, which is the only thing the table was doing for us. */}
+      <ul>
+        {people.map((person) => (
+          <li key={person.id} className={ROW}>
+            <span className="truncate text-14 font-medium">
+              {person.full_name}
+              {person.id === me && (
+                <span className="ml-2 text-11 font-normal text-graphite">You</span>
+              )}
+            </span>
+            <span className="truncate text-14 text-graphite">{person.email}</span>
+          </li>
+        ))}
+      </ul>
     </Panel>
   )
 }
+
+/** Name and email, aligned in two columns and stacked on a narrow screen. */
+const ROW =
+  'grid grid-cols-1 gap-x-6 py-1.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,38%)] sm:items-baseline'
