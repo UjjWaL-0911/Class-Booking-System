@@ -65,10 +65,23 @@ def build_engine(
         "echo": settings.db_echo,
         "pool_size": settings.db_pool_size,
         "max_overflow": settings.db_max_overflow,
-        # The instance sleeps after ~15 minutes idle and the pooler has its own
-        # idle timeout. Without pre-ping, the first request after every wake fails
-        # with ConnectionDoesNotExistError on a connection that is already dead.
-        "pool_pre_ping": True,
+        # `pool_pre_ping` is deliberately OFF, and `pool_recycle` is what replaces
+        # it. Pre-ping validates the connection with a round trip before handing it
+        # out — on every request, on the critical path. Measured against Supabase
+        # from another region that was 35% of the cost of a whole trivial request,
+        # which is a large toll to pay continuously to insure against a rare event.
+        #
+        # What it was insuring against is mostly not a risk here. Render stops the
+        # container when it sleeps, so waking starts a fresh process with an empty
+        # pool and no stale sockets to trip over. The remaining case is a
+        # connection the pooler drops while this process stays alive — and
+        # `pool_recycle` already discards anything older than five minutes, which
+        # is shorter than the pooler's own idle timeout.
+        #
+        # If dead connections ever do surface, the fix is a retry on the specific
+        # disconnect error rather than a ping before every query: pay on the rare
+        # failure instead of on every success.
+        "pool_pre_ping": False,
         "pool_recycle": settings.db_pool_recycle_seconds,
         "connect_args": {
             # asyncpg's cache. Prepared statements do not survive a transaction

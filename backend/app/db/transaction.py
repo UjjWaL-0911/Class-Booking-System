@@ -24,15 +24,33 @@ from app.core.config import Settings, get_settings
 async def apply_local_timeouts(session: AsyncSession, settings: Settings | None = None) -> None:
     """Apply ``lock_timeout`` and ``statement_timeout`` to the current transaction.
 
-    ``SET`` does not accept bind parameters, so the values are interpolated. They
-    are ``int`` fields on the settings model and coerced again here, which is what
-    makes that safe.
+    **One statement, not two, and that is a latency fix rather than a tidy-up.**
+    These two lines used to be two ``SET LOCAL`` statements, which is two network
+    round trips on the critical path of every single request. Against a database
+    in another region that was 205ms of the ~600ms a trivial request cost — more
+    than the query it was protecting.
+
+    ``set_config(key, value, is_local => true)`` is exactly ``SET LOCAL``: scoped
+    to the transaction, reverted on commit or rollback, and therefore still safe
+    through a transaction-mode pooler that hands the server connection to somebody
+    else the moment this transaction ends. The difference is that two of them fit
+    in one ``SELECT``, so the round trip is paid once.
+
+    ``set_config`` also takes bind parameters, which ``SET`` does not — so the
+    values stop being interpolated into SQL. They were only ever ``int`` fields
+    coerced again here, but a parameter is a better argument than a promise.
     """
     settings = settings or get_settings()
-    lock_ms = int(settings.lock_timeout_ms)
-    statement_ms = int(settings.statement_timeout_ms)
-    await session.execute(text(f"SET LOCAL lock_timeout = '{lock_ms}ms'"))
-    await session.execute(text(f"SET LOCAL statement_timeout = '{statement_ms}ms'"))
+    await session.execute(
+        text(
+            "SELECT set_config('lock_timeout', :lock, true), "
+            "set_config('statement_timeout', :statement, true)"
+        ),
+        {
+            "lock": f"{int(settings.lock_timeout_ms)}ms",
+            "statement": f"{int(settings.statement_timeout_ms)}ms",
+        },
+    )
 
 
 @asynccontextmanager
