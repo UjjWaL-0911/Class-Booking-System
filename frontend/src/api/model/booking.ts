@@ -35,6 +35,8 @@ export interface BookingEvent {
 
 export interface BookingWithTimeline extends Booking {
   events: BookingEvent[]
+  /** 1-based place in the queue. Null unless this booking is waitlisted. */
+  waitlist_position: number | null
 }
 
 /** Cancelling can promote the next person in line, so the response says whether it did. */
@@ -64,6 +66,9 @@ export interface BookingListItem {
 
   /** A waitlisted booking on a session that has already happened stays waitlisted. */
   session_has_passed: boolean
+
+  /** 1-based place in the queue. Null unless this booking is waitlisted. */
+  waitlist_position: number | null
 }
 
 export type BookingSort = 'booked_at' | 'status' | 'session'

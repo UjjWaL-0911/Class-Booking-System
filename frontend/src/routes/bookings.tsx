@@ -186,7 +186,7 @@ export function BookingsPage() {
                     {formatDateShort(item.session_date)}, {formatTime(item.session_start_time)}
                   </Td>
                   <Td>
-                    <StatusChip status={item.status} />
+                    <StatusChip status={item.status} position={item.waitlist_position} />
                     {/* A waitlisted booking on a class that has already happened
                         is shown as it is rather than quietly rewritten — that
                         person never got in, and the record should say so. */}

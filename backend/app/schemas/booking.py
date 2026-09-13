@@ -77,6 +77,10 @@ class BookingEventOut(BaseModel):
 class BookingWithTimeline(BookingOut):
     events: list[BookingEventOut]
 
+    # Only ever set while the booking is waitlisted. The history screen is where
+    # somebody rings up and asks where they are, so the answer belongs on it.
+    waitlist_position: int | None = None
+
 
 class CancelResult(BaseModel):
     """Cancelling can promote someone, so the response says whether it did.

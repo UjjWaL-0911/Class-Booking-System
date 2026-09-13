@@ -16,7 +16,7 @@ import uuid
 from typing import Any, NamedTuple
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Select, Text, or_, select
+from sqlalchemy import Select, Text, case, or_, select, tuple_
 from sqlalchemy import func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,11 +42,53 @@ class BookingRow(NamedTuple):
     member: Member
     session: ClassSession
     studio_class: StudioClass
+    # 1-based place in this session's queue, or None when the booking is not
+    # waitlisted. See ``waitlist_position_column``.
+    waitlist_position: int | None
 
 
 class BookingSearchResult(NamedTuple):
     rows: list[BookingRow]
     total: int
+
+
+def waitlist_position_column() -> Any:
+    """How far down the queue a waitlisted booking is, as SQL.
+
+    The number a member is told when they ring up, so it has to be **the same
+    ordering the promotion actually uses** — ``booked_at`` then ``id``. Getting
+    that wrong would not fail; it would just make the studio tell somebody they
+    are third when they are fourth, which nobody discovers until a seat frees and
+    the wrong person gets it.
+
+    Counting earlier rows rather than a window function, because a window over the
+    result set would rank within *the page*: the bookings list is paginated across
+    many sessions, so the rows in front of this one are usually not in it. The
+    correlated count asks the whole table.
+
+    The row-value comparison ``(booked_at, id) < (booked_at, id)`` is the same
+    tiebreak the promotion query applies, written once so the two cannot drift.
+
+    Wrapped in ``CASE`` so it is only evaluated for waitlisted rows — a page of
+    fifty settled bookings should not run fifty subqueries to answer a question
+    none of them are asking. ``ix_bookings_session_status`` covers the count.
+    """
+    earlier = Booking.__table__.alias("earlier")
+    ahead = (
+        select(sa_func.count())
+        .select_from(earlier)
+        .where(
+            earlier.c.session_id == Booking.session_id,
+            earlier.c.status == BookingStatus.WAITLISTED,
+            tuple_(earlier.c.booked_at, earlier.c.id)
+            < tuple_(Booking.booked_at, Booking.id),
+        )
+        .scalar_subquery()
+    )
+    return case(
+        (Booking.status == BookingStatus.WAITLISTED, ahead + 1),
+        else_=None,
+    ).label("waitlist_position")
 
 
 def _apply_filters(
@@ -159,7 +201,14 @@ async def search_bookings(
     total_column = sa_func.count().over().label("total_matches")
 
     query = (
-        select(Booking, Member, ClassSession, StudioClass, total_column)
+        select(
+            Booking,
+            Member,
+            ClassSession,
+            StudioClass,
+            total_column,
+            waitlist_position_column(),
+        )
         .join(Member, Member.id == Booking.member_id)
         .join(ClassSession, ClassSession.id == Booking.session_id)
         .join(StudioClass, StudioClass.id == ClassSession.class_id)
@@ -191,6 +240,7 @@ async def search_bookings(
                 member=row[1],
                 session=row[2],
                 studio_class=row[3],
+                waitlist_position=row[5],
             )
             for row in result
         ],

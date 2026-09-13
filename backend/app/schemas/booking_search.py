@@ -62,3 +62,8 @@ class BookingListItem(BaseModel):
     # such rather than silently rewritten — see "Two query definitions that are
     # decisions" in schema.md.
     session_has_passed: bool
+
+    # 1-based place in the queue, and null unless this booking is waitlisted.
+    # Members have no accounts here, so "waitlist position visibility" means the
+    # person at the desk can answer "where am I?" without opening the session.
+    waitlist_position: int | None = None

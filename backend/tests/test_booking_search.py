@@ -593,3 +593,135 @@ class TestDateRange:
 
         assert response.status_code == 200
         assert response.json()["total"] == 0
+
+class TestWaitlistPosition:
+    """Where a member is in the queue (the "waitlist position" stretch idea).
+
+    Members have no accounts in this system, so "visibility for members" means the
+    person at the front desk can answer "where am I?" without opening the session
+    and counting. The number therefore appears wherever a booking is looked up: the
+    bookings list and the booking's own history.
+
+    The property that actually matters is the last test here — the number has to
+    agree with who the system would really promote next. A position computed from a
+    different ordering would never fail; it would just tell somebody they are third
+    when they are fourth, and nobody finds out until a seat frees.
+    """
+
+    async def _queue(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str], waiting: int = 3
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        """A session with one seat, filled, and `waiting` people behind it."""
+        session = await _session(staff, db, accounts, capacity=1)
+        members = []
+        for _ in range(waiting + 1):
+            member = await _member(staff)
+            await _book(staff, session["id"], member["id"])
+            members.append(member)
+        return session, members
+
+    async def test_the_queue_is_numbered_from_one(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
+    ) -> None:
+        session, members = await self._queue(staff, db, accounts)
+
+        rows = (
+            await staff.get(f"/api/v1/bookings?session_id={session['id']}&limit=50")
+        ).json()["items"]
+        by_member = {r["member_id"]: r for r in rows}
+
+        # The first to book got the seat, so they have no position at all.
+        assert by_member[members[0]["id"]]["status"] == "booked"
+        assert by_member[members[0]["id"]]["waitlist_position"] is None
+
+        for place, member in enumerate(members[1:], start=1):
+            row = by_member[member["id"]]
+            assert row["status"] == "waitlisted"
+            assert row["waitlist_position"] == place
+
+    async def test_only_waitlisted_bookings_carry_one(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
+    ) -> None:
+        """A cancelled or settled booking is not in any queue, and saying it is
+        third would be worse than saying nothing."""
+        session, _members = await self._queue(staff, db, accounts, waiting=1)
+        waiting = (
+            await staff.get(f"/api/v1/bookings?session_id={session['id']}&status=waitlisted")
+        ).json()["items"][0]
+
+        await staff.post(f"/api/v1/bookings/{waiting['id']}/cancel", json={"note": None})
+
+        after = (await staff.get(f"/api/v1/bookings?session_id={session['id']}&limit=50")).json()
+        cancelled = next(r for r in after["items"] if r["id"] == waiting["id"])
+        assert cancelled["status"] == "cancelled"
+        assert cancelled["waitlist_position"] is None
+
+    async def test_cancelling_someone_ahead_moves_everyone_up(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
+    ) -> None:
+        session, members = await self._queue(staff, db, accounts, waiting=3)
+
+        rows = (
+            await staff.get(f"/api/v1/bookings?session_id={session['id']}&limit=50")
+        ).json()["items"]
+        second = next(
+            r for r in rows if r["member_id"] == members[2]["id"]
+        )  # third to book, second in the queue
+        assert second["waitlist_position"] == 2
+
+        first_waiting = next(r for r in rows if r["member_id"] == members[1]["id"])
+        await staff.post(f"/api/v1/bookings/{first_waiting['id']}/cancel", json={"note": None})
+
+        moved = (
+            await staff.get(f"/api/v1/bookings?session_id={session['id']}&limit=50")
+        ).json()["items"]
+        assert next(r for r in moved if r["member_id"] == members[2]["id"])[
+            "waitlist_position"
+        ] == 1
+
+    async def test_the_position_appears_on_the_bookings_history(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
+    ) -> None:
+        session, members = await self._queue(staff, db, accounts, waiting=2)
+        rows = (
+            await staff.get(f"/api/v1/bookings?session_id={session['id']}&limit=50")
+        ).json()["items"]
+        last = next(r for r in rows if r["member_id"] == members[2]["id"])
+
+        timeline = (await staff.get(f"/api/v1/bookings/{last['id']}/timeline")).json()
+
+        assert timeline["status"] == "waitlisted"
+        assert timeline["waitlist_position"] == 2
+
+    async def test_a_booked_booking_has_no_position_on_its_history(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
+    ) -> None:
+        session, _members = await self._queue(staff, db, accounts, waiting=1)
+        rows = (
+            await staff.get(f"/api/v1/bookings?session_id={session['id']}&limit=50")
+        ).json()["items"]
+        booked = next(r for r in rows if r["status"] == "booked")
+
+        timeline = (await staff.get(f"/api/v1/bookings/{booked['id']}/timeline")).json()
+
+        assert timeline["waitlist_position"] is None
+
+    async def test_position_one_is_who_actually_gets_promoted(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
+    ) -> None:
+        """The whole point. The number is only useful if it agrees with the
+        promotion order, so this asserts them against each other rather than
+        asserting each against my own assumption."""
+        session, _ = await self._queue(staff, db, accounts, waiting=3)
+        rows = (
+            await staff.get(f"/api/v1/bookings?session_id={session['id']}&limit=50")
+        ).json()["items"]
+        next_up = next(r for r in rows if r["waitlist_position"] == 1)
+        booked = next(r for r in rows if r["status"] == "booked")
+
+        result = (
+            await staff.post(f"/api/v1/bookings/{booked['id']}/cancel", json={"note": None})
+        ).json()
+
+        assert result["promoted"] is not None
+        assert result["promoted"]["id"] == next_up["id"]

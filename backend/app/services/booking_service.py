@@ -46,6 +46,7 @@ from app.models.enums import BookingEventType, BookingStatus, UserRole
 from app.models.member import Member
 from app.models.studio_class import StudioClass
 from app.models.user import User
+from app.repositories.booking_search import waitlist_position_column
 from app.services.booking_events import record_event
 
 _ACTIVE = BookingStatus.active()
@@ -342,6 +343,23 @@ class BookingService:
         applies the filter there.
         """
         return await self._booking(booking_id)
+
+    async def waitlist_position(self, booking: Booking) -> int | None:
+        """This booking's place in its session's queue, or None if it is not waiting.
+
+        Shares ``waitlist_position_column`` with the bookings list rather than
+        counting again here, so the number a member is told is the same number
+        wherever it is read from — and both stay tied to the ordering promotion
+        actually uses.
+        """
+        if booking.status is not BookingStatus.WAITLISTED:
+            return None
+        position = (
+            await self.db.execute(
+                select(waitlist_position_column()).where(Booking.id == booking.id)
+            )
+        ).scalar_one_or_none()
+        return int(position) if position is not None else None
 
     async def timeline(
         self, booking_id: uuid.UUID, viewer: User

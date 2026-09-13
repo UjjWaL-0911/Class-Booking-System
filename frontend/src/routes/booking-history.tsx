@@ -83,7 +83,13 @@ export function BookingHistoryPage() {
             Open the class this booking is for
           </Link>
         }
-        actions={<StatusChip status={data.status} className="mt-1" />}
+        actions={
+          <StatusChip
+            status={data.status}
+            position={data.waitlist_position}
+            className="mt-1"
+          />
+        }
       />
 
       <div className="grid grid-cols-1 items-start gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -145,8 +151,18 @@ export function BookingHistoryPage() {
             )}
             <div className="flex items-center justify-between gap-4 text-14">
               <span className="text-graphite">Now</span>
-              <StatusChip status={data.status} />
+              <StatusChip status={data.status} position={data.waitlist_position} />
             </div>
+            {/* Spelled out as a sentence as well as a chip. This is the page open
+                while somebody is being told the answer on the phone, and "2nd"
+                beside a word is easy to misread as part of the status. */}
+            {data.waitlist_position !== null && (
+              <p className="text-12 leading-[1.5] text-graphite">
+                {data.waitlist_position === 1
+                  ? 'Next in line — the first seat to free up is theirs.'
+                  : `${data.waitlist_position - 1} ${data.waitlist_position === 2 ? 'person is' : 'people are'} ahead of them.`}
+              </p>
+            )}
           </Panel>
 
           <Panel padded className="flex flex-col gap-3">

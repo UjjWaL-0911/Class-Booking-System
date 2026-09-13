@@ -136,6 +136,7 @@ async def list_bookings(
             class_title=row.studio_class.title,
             discipline=row.studio_class.discipline,
             session_has_passed=has_passed(row.session, now),
+            waitlist_position=row.waitlist_position,
         )
         for row in result.rows
     ]
@@ -285,8 +286,10 @@ async def get_timeline(
     staff. The database rejects both operations, so such an endpoint could only
     ever return an error.
     """
-    booking, events = await BookingService(db, settings).timeline(booking_id, viewer)
+    service = BookingService(db, settings)
+    booking, events = await service.timeline(booking_id, viewer)
     return BookingWithTimeline(
         **_to_out(booking).model_dump(),
+        waitlist_position=await service.waitlist_position(booking),
         events=[_event_to_out(e) for e in events],
     )
