@@ -1,5 +1,6 @@
 import { PanelHeader } from '@/components/ui/panel'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/states'
+import { useIsStaff } from '@/hooks/use-auth'
 import { useOperations } from '@/hooks/use-operations'
 import { formatDateShort } from '@/lib/dates'
 import type { InstructorPay, RoomUsage } from '@/api/types'
@@ -19,9 +20,16 @@ import type { InstructorPay, RoomUsage } from '@/api/types'
  * **Money is formatted here and nowhere else.** The server sends minor units as
  * integers throughout — the only division by 100 in the system is on the line
  * below, at the moment it is printed.
+ *
+ * **An instructor sees one half of it**: their own pay, no utilisation, no
+ * colleagues. The server has already scoped the response, so the only thing the
+ * role changes here is the wording and the column count — a screen that says
+ * "Instructor pay" over a list of one, next to an empty rooms panel, would be
+ * technically correct and read as a bug.
  */
 export function OperationsPanels({ from, to }: { from: string; to: string }) {
   const report = useOperations(from, to)
+  const isStaff = useIsStaff()
 
   if (report.isPending) return <Skeleton rows={6} />
   if (report.error) {
@@ -33,30 +41,42 @@ export function OperationsPanels({ from, to }: { from: string; to: string }) {
   const window = `${formatDateShort(from)} to ${formatDateShort(to)}`
 
   return (
-    <div className="grid grid-cols-1 items-start gap-8 xl:grid-cols-2">
-      <section>
-        <PanelHeader label="Room use" aside={window} />
-        {rooms.length === 0 ? (
-          <EmptyState title="No rooms yet">
-            Rooms are what sessions are scheduled into.
-          </EmptyState>
-        ) : (
-          <ul>
-            {rooms.map((room) => (
-              <RoomRow key={room.room_id} room={room} peak={peakMinutes(rooms)} />
-            ))}
-          </ul>
-        )}
-      </section>
+    <div className={isStaff ? 'grid grid-cols-1 items-start gap-8 xl:grid-cols-2' : undefined}>
+      {isStaff && (
+        <section>
+          <PanelHeader label="Room use" aside={window} />
+          {rooms.length === 0 ? (
+            <EmptyState title="No rooms yet">
+              Rooms are what sessions are scheduled into.
+            </EmptyState>
+          ) : (
+            <ul>
+              {rooms.map((room) => (
+                <RoomRow key={room.room_id} room={room} peak={peakMinutes(rooms)} />
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <section>
         <PanelHeader
-          label="Instructor pay"
-          aside={total === null ? 'Total withheld — a rate is missing' : formatMoney(total)}
+          label={isStaff ? 'Instructor pay' : 'Your pay'}
+          /* The total is the studio's payroll bill. For an instructor it would be
+             their own row printed twice, so they get the window instead. */
+          aside={
+            !isStaff
+              ? window
+              : total === null
+                ? 'Total withheld — a rate is missing'
+                : formatMoney(total)
+          }
         />
         {instructors.length === 0 ? (
-          <EmptyState title="Nobody taught in this window">
-            Pay is counted from sessions led, so an empty timetable means an empty list.
+          <EmptyState title={isStaff ? 'Nobody taught in this window' : 'You taught nothing here'}>
+            {isStaff
+              ? 'Pay is counted from sessions led, so an empty timetable means an empty list.'
+              : 'Pay is counted from the sessions you lead, not the ones you assist on.'}
           </EmptyState>
         ) : (
           <ul>

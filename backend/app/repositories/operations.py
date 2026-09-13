@@ -21,7 +21,7 @@ import datetime as dt
 from typing import NamedTuple
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Integer, and_, cast, func, select
+from sqlalchemy import Integer, and_, cast, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.time import to_utc
@@ -130,6 +130,15 @@ async def instructor_pay(
     this report has no business making on the studio's behalf. If the studio wants to
     pay co-instructors, that is a rate of its own and a conversation first.
 
+    **An instructor sees one row: their own.** Being able to check what you are owed
+    is not the same permission as being able to read what a colleague earns, and the
+    first is unreasonable to withhold. The scoping is an explicit `User.id == viewer`
+    rather than the usual session visibility clause, because that clause would not do
+    it — an instructor can see sessions they *co-instruct*, which are led by somebody
+    else, so filtering on visible sessions would hand them that person's row and rate.
+    The rule here is about whose row it is, not which sessions are visible, so it is
+    written as its own condition.
+
     ``total_minor`` is null — not zero — when no rate has been set, because "we have
     not decided what to pay them" and "they are owed nothing" are different facts and
     a payroll report must not conflate them.
@@ -147,6 +156,7 @@ async def instructor_pay(
         visible_sessions_clause(viewer),
     )
     taught = func.count(ClassSession.id)
+    whose = true() if viewer.role is UserRole.STAFF else User.id == viewer.id
 
     rows = (
         await db.execute(
@@ -162,7 +172,7 @@ async def instructor_pay(
             )
             .select_from(User)
             .outerjoin(ClassSession, led)
-            .where(User.is_active.is_(True))
+            .where(User.is_active.is_(True), whose)
             .group_by(User.id, User.full_name, User.session_rate_minor)
             .having(taught > 0)
             .order_by(taught.desc(), User.full_name)

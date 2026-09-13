@@ -273,10 +273,75 @@ class TestInstructorPay:
 
 
 class TestAccess:
-    async def test_an_instructor_cannot_read_it(self, instructor: AsyncClient) -> None:
-        """Utilisation is commercially sensitive and payroll more so — an instructor
-        must not be able to read what a colleague is paid."""
-        assert (await instructor.get(PATH)).status_code == 403
+    async def test_an_instructor_sees_their_own_pay(
+        self,
+        staff: AsyncClient,
+        instructor: AsyncClient,
+        db: AsyncSession,
+        accounts: dict[str, str],
+    ) -> None:
+        """Being told what you are owed is not the same permission as being able to
+        read what a colleague earns, and withholding the first would be odd."""
+        me = await _user_id(db, accounts["instructor"])
+        await _rate(db, me, 4200)
+        studio_class = await _class(staff)
+        await _session(
+            staff,
+            class_id=studio_class["id"],
+            room_id=(await _room(staff))["id"],
+            instructor_id=me,
+        )
+
+        body = (await _report(instructor))["instructors"]
+
+        assert [r["instructor_id"] for r in body] == [me]
+        assert body[0]["session_rate_minor"] == 4200
+
+    async def test_an_instructor_cannot_read_a_colleagues_pay(
+        self,
+        staff: AsyncClient,
+        instructor: AsyncClient,
+        db: AsyncSession,
+        accounts: dict[str, str],
+    ) -> None:
+        """The case the ordinary visibility rule would not catch.
+
+        An instructor can *see* a session they co-instruct — so filtering on visible
+        sessions would hand them the row of the colleague who leads it, rate and all.
+        The scoping is on whose row it is, which is why it is written as its own
+        condition rather than reusing the clause.
+        """
+        colleague = await _user_id(db, accounts["staff"])
+        me = await _user_id(db, accounts["instructor"])
+        await _rate(db, colleague, 999900)
+        studio_class = await _class(staff)
+        session = await _session(
+            staff,
+            class_id=studio_class["id"],
+            room_id=(await _room(staff))["id"],
+            instructor_id=colleague,
+        )
+        added = await staff.post(
+            f"/api/v1/sessions/{session['id']}/co-instructors", json={"user_id": me}
+        )
+        assert added.status_code in (200, 201), added.text
+        assert any(
+            r["instructor_id"] == colleague for r in (await _report(staff))["instructors"]
+        )
+
+        rows = (await _report(instructor))["instructors"]
+
+        assert all(r["instructor_id"] != colleague for r in rows)
+
+    async def test_an_instructor_sees_no_room_utilisation(
+        self, staff: AsyncClient, instructor: AsyncClient
+    ) -> None:
+        """Utilisation is a commercial figure about the studio, and nothing an
+        instructor needs to do their job. An empty list rather than a 403, so the
+        response shape does not change with the reader."""
+        await _room(staff)
+
+        assert (await _report(instructor))["rooms"] == []
 
     async def test_anonymous_callers_are_refused(self, api: AsyncClient) -> None:
         assert (await api.get(PATH)).status_code == 401

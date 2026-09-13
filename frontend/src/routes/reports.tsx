@@ -83,11 +83,11 @@ export function ReportsPage() {
         )}
       </Panel>
 
-      {/* Staff only, and not because the interface is being coy: the server
-          refuses both halves for an instructor. Utilisation is commercially
-          sensitive and payroll more so — nobody should read what a colleague is
-          paid. */}
-      {isStaff && <OperationsPanels from={addDays(today, -30)} to={today} />}
+      {/* Both roles, scoped differently by the server: staff see every room and
+          every instructor, an instructor sees their own pay and no utilisation.
+          Reading what a colleague earns is the thing being prevented — not
+          somebody checking what they are owed. */}
+      <OperationsPanels from={addDays(today, -30)} to={today} />
 
       <RecentRegisters />
 

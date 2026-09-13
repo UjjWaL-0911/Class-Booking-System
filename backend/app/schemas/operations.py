@@ -49,6 +49,10 @@ class OperationsReport(BaseModel):
     One request rather than two, for the reason the dashboard gives: they are read
     side by side, and two round trips to a remote database to fill one screen is two
     chances for the halves to describe different moments.
+
+    ``rooms`` is empty for an instructor, who sees only their own pay row. An empty
+    list rather than a null or a 403: the shape does not change with the reader, so
+    the interface renders what it was given instead of branching on role.
     """
 
     starts: dt.date
