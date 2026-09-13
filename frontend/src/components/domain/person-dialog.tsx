@@ -5,7 +5,9 @@ import { Dialog } from '@/components/ui/dialog'
 import { Field, TextInput } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast-context'
 import { useForm } from '@/hooks/use-form'
+import { RoleChoice } from '@/components/domain/role-choice'
 import { useCreateUser } from '@/hooks/use-users'
+import { toMinor } from '@/lib/money'
 import { emailFormat, firstProblem, LIMITS, maxLength, minLength, required } from '@/lib/validation'
 import type { UserRole } from '@/api/types'
 
@@ -38,6 +40,7 @@ export function PersonDialog({
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<UserRole>('instructor')
   const [password, setPassword] = useState('')
+  const [rate, setRate] = useState('')
 
   const serverFields = (
     createUser.error instanceof ApiError ? createUser.error.details['fields'] : null
@@ -50,6 +53,11 @@ export function PersonDialog({
       required(password, 'a password'),
       minLength(password, LIMITS.password, 'A password'),
     ),
+    // Empty is valid and means "not agreed yet". Only nonsense is a problem.
+    session_rate_minor:
+      toMinor(rate) === undefined
+        ? 'Use digits and at most two decimal places, like 1200 or 1200.50.'
+        : null,
   })
   const { reset: resetForm } = form
 
@@ -59,10 +67,11 @@ export function PersonDialog({
     setEmail('')
     setRole('instructor')
     setPassword('')
+    setRate('')
     resetForm()
   }, [open, resetForm])
 
-  function problem(field: 'full_name' | 'email' | 'password'): string | null {
+  function problem(field: 'full_name' | 'email' | 'password' | 'session_rate_minor'): string | null {
     return form.error(field) ?? serverFields?.[field] ?? null
   }
 
@@ -78,6 +87,7 @@ export function PersonDialog({
         email: email.trim(),
         role,
         password,
+        session_rate_minor: toMinor(rate) ?? null,
       },
       {
         onSuccess: (person) => {
@@ -174,6 +184,29 @@ export function PersonDialog({
           )}
         </Field>
 
+        {/* Optional, and deliberately after the role: somebody adding an
+            instructor on a Monday morning should not be held up by a number that
+            has to come from whoever agrees rates. An empty box means "not agreed",
+            which the payroll report reports as such rather than as unpaid. */}
+        <Field
+          label="Per session"
+          hint="Optional. What they are paid to lead one class — leave it empty until a rate is agreed."
+          error={problem('session_rate_minor')}
+        >
+          {(id, describedBy) => (
+            <TextInput
+              id={id}
+              inputMode="decimal"
+              placeholder="No rate set"
+              aria-describedby={describedBy}
+              invalid={problem('session_rate_minor') !== null}
+              value={rate}
+              onChange={(event) => setRate(event.target.value)}
+              onBlur={() => form.touch('session_rate_minor')}
+            />
+          )}
+        </Field>
+
         <Field
           label="Password"
           hint={`At least ${LIMITS.password} characters. Tell them what you set — they cannot change it from inside the app yet.`}
@@ -206,35 +239,5 @@ export function PersonDialog({
         )}
       </div>
     </Dialog>
-  )
-}
-
-function RoleChoice({
-  value,
-  current,
-  onChange,
-  label,
-  detail,
-}: {
-  value: UserRole
-  current: UserRole
-  onChange: (role: UserRole) => void
-  label: string
-  detail: string
-}) {
-  return (
-    <label className="flex cursor-pointer items-start gap-3">
-      <input
-        type="radio"
-        name="role"
-        className="mt-1 accent-ink"
-        checked={current === value}
-        onChange={() => onChange(value)}
-      />
-      <span>
-        <span className="block text-14 font-medium">{label}</span>
-        <span className="block text-12 leading-[1.5] text-graphite">{detail}</span>
-      </span>
-    </label>
   )
 }

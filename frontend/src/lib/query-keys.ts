@@ -46,6 +46,16 @@ export const keys = {
  * one place in this system that must never hold an opinion about who gets a freed
  * spot.
  */
+/**
+ * What a rate change affects.
+ *
+ * The list, obviously — and the operations report, because its payroll figures
+ * are computed from this number. Leaving yesterday's total on the reports screen
+ * after a raise would be showing somebody a figure the server no longer agrees
+ * with. `['operations']` is the prefix, so every window in the cache goes.
+ */
+export const rateWriteAffects = [['teachers'], ['operations']] as const
+
 export const bookingWriteAffects = [
   ['bookings'],
   ['sessions'],

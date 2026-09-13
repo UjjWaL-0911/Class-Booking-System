@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createUser, listTeachers } from '@/api/users'
-import { keys } from '@/lib/query-keys'
+import { createUser, listTeachers, setSessionRate } from '@/api/users'
+import { keys, rateWriteAffects } from '@/lib/query-keys'
+import type { Uuid } from '@/api/types'
 
 /** Everyone who can lead a class — active accounts of either role. */
 export function useTeachers() {
@@ -26,5 +27,19 @@ export function useCreateUser() {
   return useMutation({
     mutationFn: createUser,
     onSuccess: () => void client.invalidateQueries({ queryKey: keys.teachers }),
+  })
+}
+
+/** Set or clear somebody's session rate. `null` clears it, which is not zero. */
+export function useSetRate() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, minor }: { id: Uuid; minor: number | null }) =>
+      setSessionRate(id, { session_rate_minor: minor }),
+    onSuccess: () => {
+      for (const key of rateWriteAffects) {
+        void client.invalidateQueries({ queryKey: key })
+      }
+    },
   })
 }

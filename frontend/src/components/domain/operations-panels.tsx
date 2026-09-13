@@ -3,6 +3,7 @@ import { EmptyState, ErrorState, Skeleton } from '@/components/ui/states'
 import { useIsStaff } from '@/hooks/use-auth'
 import { useOperations } from '@/hooks/use-operations'
 import { formatDateShort } from '@/lib/dates'
+import { formatMoney } from '@/lib/money'
 import type { InstructorPay, RoomUsage } from '@/api/types'
 
 /**
@@ -17,9 +18,8 @@ import type { InstructorPay, RoomUsage } from '@/api/types'
  * instead, which answers "which room is under-used" without anybody having to
  * agree what 100% would mean.
  *
- * **Money is formatted here and nowhere else.** The server sends minor units as
- * integers throughout — the only division by 100 in the system is on the line
- * below, at the moment it is printed.
+ * **Money arrives as integer minor units** and is divided by 100 in exactly one
+ * place in this app, `lib/money`, at the moment it is printed.
  *
  * **An instructor sees one half of it**: their own pay, no utilisation, no
  * colleagues. The server has already scoped the response, so the only thing the
@@ -140,19 +140,4 @@ function formatHours(minutes: number): string {
   const rest = minutes % 60
   if (hours === 0) return `${rest}m`
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
-}
-
-/**
- * Minor units to something a person reads.
- *
- * Grouped by `toLocaleString` rather than by hand, and deliberately with no
- * currency symbol: the server has never been told which currency the studio keeps
- * its books in, and inventing one on a payroll report is worse than leaving the
- * number bare.
- */
-function formatMoney(minor: number): string {
-  return (minor / 100).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
 }

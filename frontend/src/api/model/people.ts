@@ -10,6 +10,8 @@ export interface UserCreate {
   full_name: string
   role: UserRole
   password: string
+  /** Minor units. Optional — an account may exist before a rate is agreed. */
+  session_rate_minor?: number | null
 }
 
 export interface User {
@@ -17,6 +19,22 @@ export interface User {
   email: string
   full_name: string
   role: UserRole
+}
+
+/**
+ * A colleague as the staff-only list returns them: a `User` plus their rate.
+ *
+ * Separate from `User` for the reason the server separates them — `User` is what
+ * sign-in returns, and a pay rate has no business riding along on every login.
+ * `null` is "no rate agreed", which is not zero.
+ */
+export interface Teacher extends User {
+  session_rate_minor: number | null
+}
+
+/** The only editable thing about an account. `null` clears the rate. */
+export interface UserUpdate {
+  session_rate_minor: number | null
 }
 
 export interface TokenResponse {
