@@ -35,3 +35,42 @@ async def test_health_endpoints_sit_outside_the_api_version_prefix(
 
 async def test_unknown_route_is_a_404(client: AsyncClient) -> None:
     assert (await client.get("/does-not-exist")).status_code == 404
+
+
+class TestHeadProbes:
+    """Both health endpoints answer HEAD, not just GET.
+
+    Starlette adds HEAD to any GET route automatically; FastAPI's ``APIRoute``
+    overrides that and registers only the methods it is given. So a plain
+    ``@router.get`` here answers a HEAD probe with **405** — the path matches, the
+    method does not — and an uptime monitor reads that as the service being down
+    while it is serving perfectly. Which is exactly what happened the first time
+    this was monitored.
+
+    Free uptime checks default to HEAD because it is cheaper, and so do plenty of
+    load balancers. These two tests are here because the failure is invisible from
+    the application's own side: every human and every browser uses GET.
+    """
+
+    async def test_liveness_answers_head(self, api: AsyncClient) -> None:
+        response = await api.head("/health")
+
+        assert response.status_code == 200
+
+    async def test_readiness_answers_head(self, api: AsyncClient) -> None:
+        response = await api.head("/health/ready")
+
+        assert response.status_code == 200
+
+    async def test_head_carries_no_body(self, api: AsyncClient) -> None:
+        """What makes HEAD cheap. Starlette strips it; this asserts it stays so."""
+        response = await api.head("/health")
+
+        assert response.content == b""
+
+    async def test_get_is_unchanged(self, api: AsyncClient) -> None:
+        """The point of the change was to add a method, not alter one."""
+        response = await api.get("/health")
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
