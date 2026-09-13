@@ -68,7 +68,7 @@ export function LandingPage() {
       </div>
 
       <StudioIntro targetRef={markRef} onDone={land}>
-        Mornington
+        Mornington Studios
       </StudioIntro>
 
       <div className="relative">
@@ -134,7 +134,7 @@ function Hero({
           className="display text-36 leading-none transition-opacity duration-200 sm:text-44"
           style={{ opacity: arrived ? 1 : 0 }}
         >
-          Mornington
+          Mornington Studios
         </span>
         <div
           className="flex items-center gap-10 transition-opacity duration-300"

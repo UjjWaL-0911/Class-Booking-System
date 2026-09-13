@@ -128,7 +128,7 @@ export function StudioIntro({
         // broken across two lines is not a wordmark — so the type has to shrink
         // instead, and 15vw did not: under about 700px the word was wider than
         // the screen and the overlay clipped both ends of it.
-        className="display whitespace-nowrap text-[clamp(2.25rem,13vw,12rem)] leading-none"
+        className="display whitespace-nowrap text-[clamp(2rem,8vw,8.5rem)] leading-none"
         style={{ transformOrigin: 'center center', willChange: 'transform, opacity' }}
       >
         {children}
