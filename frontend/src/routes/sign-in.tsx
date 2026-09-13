@@ -54,7 +54,7 @@ export function SignInPage() {
       <div className="w-full max-w-[380px]">
         <div className="mb-8">
           <Link to={routes.landing} className="display text-36 hover:text-ink">
-            Mornington
+            Mornington Studios
           </Link>
           <p className="mt-1 text-14 text-graphite">
             Sign in to take bookings and manage the timetable.

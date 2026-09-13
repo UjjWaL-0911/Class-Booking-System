@@ -61,9 +61,11 @@ export function Rail() {
               two-line block with a different meaning on each line. */}
           <Link
             to={routes.landing}
-            className="display inline-block text-28 transition-colors duration-[120ms] hover:text-ink"
+            className="display inline-block text-28 leading-[1.05] transition-colors duration-[120ms] hover:text-ink"
           >
             Mornington
+            <br />
+            Studios
           </Link>
           <p className="tracked mt-1 text-11 text-graphite">
             {user.role === 'staff' ? 'Front desk' : 'Instructor'}

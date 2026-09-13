@@ -49,7 +49,7 @@ export function PublicSchedulePage() {
             to={routes.landing}
             className="display inline-block text-36 leading-none transition-colors duration-[120ms] hover:text-ink"
           >
-            Mornington
+            Mornington Studios
           </Link>
           <p className="mt-3 max-w-[48ch] text-16 leading-[1.6] text-graphite">
             What is on over the next fortnight. Classes are booked at the front desk —
