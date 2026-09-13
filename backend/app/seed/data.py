@@ -31,6 +31,10 @@ class SeedUser(NamedTuple):
     email: str
     full_name: str
     role: UserRole
+    # What they are paid per session, in minor units. None is deliberate on one
+    # instructor: the payroll report withholds its grand total when anybody who
+    # taught has no rate, and a demo where that never happens never shows it.
+    session_rate_minor: int | None = None
 
 
 class SeedClass(NamedTuple):
@@ -76,9 +80,10 @@ STAFF = [
 ]
 
 INSTRUCTORS = [
-    SeedUser("aryan@studio.demo", "Aryan Mehta", UserRole.INSTRUCTOR),
-    SeedUser("marcus@studio.demo", "Arjun Nair", UserRole.INSTRUCTOR),
-    SeedUser("elena@studio.demo", "Kavita Joshi", UserRole.INSTRUCTOR),
+    SeedUser("aryan@studio.demo", "Aryan Mehta", UserRole.INSTRUCTOR, 120000),
+    SeedUser("marcus@studio.demo", "Arjun Nair", UserRole.INSTRUCTOR, 95000),
+    # No rate on purpose — see SeedUser.
+    SeedUser("elena@studio.demo", "Kavita Joshi", UserRole.INSTRUCTOR, None),
 ]
 
 ROOMS = ["Studio A", "Studio B", "The Loft"]

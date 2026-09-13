@@ -12,7 +12,7 @@ import datetime as dt
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Index, Text, text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, Text, text
 from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,6 +44,13 @@ class User(Base, TimestampMixin):
     # stateless. That is the trade named in architecture.md: a round-trip per
     # request, in exchange for instant revocation.
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+
+    # What this person is paid for teaching one session, in minor units — an
+    # integer, never a float, because money in a float is a rounding error waiting
+    # for a year-end total. Null means "no rate has been set", which the payroll
+    # report reports as such rather than as zero: those are different facts and
+    # only one of them is safe to act on.
+    session_rate_minor: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     primary_sessions: Mapped[list[ClassSession]] = relationship(
         back_populates="primary_instructor",

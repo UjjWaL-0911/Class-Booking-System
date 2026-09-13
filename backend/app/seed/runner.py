@@ -91,6 +91,7 @@ class Seeder:
                 password_hash=digest,
                 full_name=seed_user.full_name,
                 role=seed_user.role,
+                session_rate_minor=seed_user.session_rate_minor,
             )
             self.db.add(user)
             self.users[seed_user.email] = user

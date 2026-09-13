@@ -25,6 +25,7 @@ from app.api.v1.routers import (
     exports,
     health,
     members,
+    operations,
     public_schedule,
     rooms,
     sessions,
@@ -90,6 +91,7 @@ def create_app() -> FastAPI:
         bookings.router,
         exports.router,
         dashboard.router,
+        operations.router,
         alerts.router,
     ):
         app.include_router(versioned, prefix=settings.api_v1_prefix)

@@ -23,6 +23,7 @@ export const keys = {
   rooms: ['rooms'] as const,
   teachers: ['teachers'] as const,
   publicSchedule: (days: number) => ['public-schedule', days] as const,
+  operations: (from: string, to: string) => ['operations', { from, to }] as const,
 
   sessions: (query: SessionQuery) => ['sessions', query] as const,
   session: (id: Uuid) => ['sessions', id] as const,

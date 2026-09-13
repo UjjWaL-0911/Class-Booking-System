@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { AlertFeed, Dashboard, Uuid } from './types'
+import type { AlertFeed, Dashboard, OperationsReport, Uuid } from './types'
 
 /**
  * Goal 8's numbers, in one request.
@@ -14,6 +14,21 @@ export function getDashboard(): Promise<Dashboard> {
 }
 
 /** Goal 10. Includes the already-expired, with `days_remaining` negative. */
+/**
+ * Room utilisation and instructor pay over one window (two stretch ideas).
+ *
+ * One call for both, because they are read side by side and two round trips to
+ * fill one screen is two chances for the halves to describe different moments.
+ * The window looks backwards by default — both are questions about what already
+ * happened.
+ */
+export function getOperations(params?: {
+  date_from?: string
+  date_to?: string
+}): Promise<OperationsReport> {
+  return request<OperationsReport>('/operations', { query: { ...params } })
+}
+
 export function getMembershipAlerts(): Promise<AlertFeed> {
   return request<AlertFeed>('/alerts/memberships')
 }

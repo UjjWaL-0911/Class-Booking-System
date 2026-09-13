@@ -54,3 +54,32 @@ export interface AlertFeed {
   count: number
   window_days: number
 }
+
+// --- operations: room use and instructor pay ---------------------------------
+
+export interface RoomUsage {
+  room_id: Uuid
+  room_name: string
+  sessions: number
+  minutes_booked: number
+}
+
+export interface InstructorPay {
+  instructor_id: Uuid
+  instructor_name: string
+  sessions_taught: number
+  minutes_taught: number
+  /** Minor units — paise, pence, cents. Null means no rate has been set. */
+  session_rate_minor: number | null
+  /** Null when there is no rate, never zero. Those are different facts. */
+  total_minor: number | null
+}
+
+export interface OperationsReport {
+  starts: LocalDate
+  ends: LocalDate
+  rooms: RoomUsage[]
+  instructors: InstructorPay[]
+  /** Null when anybody who taught has no rate — an incomplete total is withheld. */
+  payroll_total_minor: number | null
+}

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { AttendanceChart } from '@/components/domain/attendance-chart'
 import { StatusChip } from '@/components/domain/chips'
 import { HeadlineCards } from '@/components/domain/headline-cards'
+import { OperationsPanels } from '@/components/domain/operations-panels'
 import { RecentRegisters } from '@/components/domain/recent-registers'
 import { Button } from '@/components/ui/button'
 import { Panel, PanelHeader } from '@/components/ui/panel'
@@ -11,7 +12,7 @@ import { useIsStaff } from '@/hooks/use-auth'
 import { useStudio } from '@/studio/studio-context'
 import { keys } from '@/lib/query-keys'
 import { Page, PageHeader } from '@/layout/app-shell'
-import { formatDateLong } from '@/lib/dates'
+import { addDays, formatDateLong } from '@/lib/dates'
 import type { ClassCount, StatusCount } from '@/api/types'
 import { routes } from '@/lib/routes'
 
@@ -81,6 +82,12 @@ export function ReportsPage() {
           <AttendanceChart weeks={dashboard.attendance_by_week} />
         )}
       </Panel>
+
+      {/* Staff only, and not because the interface is being coy: the server
+          refuses both halves for an instructor. Utilisation is commercially
+          sensitive and payroll more so — nobody should read what a colleague is
+          paid. */}
+      {isStaff && <OperationsPanels from={addDays(today, -30)} to={today} />}
 
       <RecentRegisters />
 
