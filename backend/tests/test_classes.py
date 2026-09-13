@@ -30,7 +30,7 @@ VALID_CLASS: dict[str, Any] = {
 async def _create(staff: AsyncClient, **overrides: Any) -> dict[str, Any]:
     response = await staff.post("/api/v1/classes", json={**VALID_CLASS, **overrides})
     assert response.status_code == 201, response.text
-    return response.json()
+    return dict(response.json())
 
 
 class TestCreate:

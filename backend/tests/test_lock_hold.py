@@ -76,7 +76,7 @@ class StatementCounter:
 def counter(engine: AsyncEngine) -> Iterator[StatementCounter]:
     tracker = StatementCounter()
 
-    def before_cursor_execute(conn, cursor, statement, *args):  # type: ignore[no-untyped-def]
+    def before_cursor_execute(conn, cursor, statement, *args):
         tracker.record(statement)
 
     event.listen(engine.sync_engine, "before_cursor_execute", before_cursor_execute)

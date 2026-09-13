@@ -49,21 +49,21 @@ class TestValidation:
         _set_required(clean_env, skip="STUDIO_TIMEZONE")
 
         with pytest.raises(ValidationError, match="not a valid IANA timezone"):
-            Settings()  # type: ignore[call-arg]
+            Settings()
 
     def test_missing_timezone_is_rejected(self, clean_env: pytest.MonkeyPatch) -> None:
         """No default: four goals silently produce wrong numbers under UTC."""
         _set_required(clean_env, skip="STUDIO_TIMEZONE")
 
         with pytest.raises(ValidationError, match="studio_timezone"):
-            Settings()  # type: ignore[call-arg]
+            Settings()
 
     def test_missing_jwt_secret_is_rejected(self, clean_env: pytest.MonkeyPatch) -> None:
         """A missing secret must crash the deploy, not surface as a 500 later."""
         _set_required(clean_env, skip="JWT_SECRET")
 
         with pytest.raises(ValidationError, match="jwt_secret"):
-            Settings()  # type: ignore[call-arg]
+            Settings()
 
     def test_non_postgres_url_is_rejected(self, clean_env: pytest.MonkeyPatch) -> None:
         """Guards against pointing the app at SQLite, where none of the
@@ -72,20 +72,20 @@ class TestValidation:
         clean_env.setenv("DATABASE_URL", "sqlite+aiosqlite:///./local.db")
 
         with pytest.raises(ValidationError, match="must be a PostgreSQL URL"):
-            Settings()  # type: ignore[call-arg]
+            Settings()
 
     def test_invalid_log_level_is_rejected(self, clean_env: pytest.MonkeyPatch) -> None:
         _set_required(clean_env)
         clean_env.setenv("LOG_LEVEL", "CHATTY")
 
         with pytest.raises(ValidationError, match="LOG_LEVEL must be one of"):
-            Settings()  # type: ignore[call-arg]
+            Settings()
 
     def test_log_level_is_normalised_to_upper_case(self, clean_env: pytest.MonkeyPatch) -> None:
         _set_required(clean_env)
         clean_env.setenv("LOG_LEVEL", "debug")
 
-        assert Settings().log_level == "DEBUG"  # type: ignore[call-arg]
+        assert Settings().log_level == "DEBUG"
 
 
 class TestProductionBehaviour:
@@ -93,7 +93,7 @@ class TestProductionBehaviour:
         _set_required(clean_env)
         clean_env.setenv("ENVIRONMENT", "production")
 
-        settings = Settings()  # type: ignore[call-arg]
+        settings = Settings()
         assert settings.is_production is True
         assert settings.docs_url is None
 

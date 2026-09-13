@@ -23,7 +23,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any, TypeVar
 
 import pytest
@@ -46,7 +46,7 @@ FUTURE = dt.datetime(2027, 8, 3, 18, 0, tzinfo=dt.UTC)
 
 
 @pytest.fixture
-async def engine() -> AsyncEngine:
+async def engine() -> AsyncIterator[AsyncEngine]:
     """An engine with room for real parallelism.
 
     Production runs pool_size=5 on a 512 MB instance. These tests need more
@@ -146,12 +146,11 @@ async def _in_own_transaction(
 
 
 async def _booked_count(db: AsyncSession, session_id: uuid.UUID) -> int:
-    return (
-        await db.execute(
-            text("SELECT count(*) FROM bookings WHERE session_id = :s AND status = 'booked'"),
-            {"s": session_id},
-        )
-    ).scalar_one()
+    result = await db.execute(
+        text("SELECT count(*) FROM bookings WHERE session_id = :s AND status = 'booked'"),
+        {"s": session_id},
+    )
+    return int(result.scalar_one())
 
 
 async def _statuses(db: AsyncSession, session_id: uuid.UUID) -> dict[str, int]:

@@ -7,6 +7,8 @@ SQLite equivalent, and they are most of what makes this system worth testing.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import text
@@ -18,7 +20,7 @@ from tests.conftest import TEST_DATABASE_URL
 
 
 @pytest.fixture
-async def db() -> AsyncSession:
+async def db() -> AsyncIterator[AsyncSession]:
     engine = build_engine(url=TEST_DATABASE_URL)
     factory = build_session_factory(engine)
     async with factory() as session:

@@ -8,6 +8,7 @@ rather than checking what an interface would render.
 from __future__ import annotations
 
 import datetime as dt
+from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -24,10 +25,10 @@ from tests.conftest import (
 pytestmark = pytest.mark.usefixtures("migrated_schema")
 
 
-async def _login(api: AsyncClient, email: str, password: str) -> dict[str, object]:
+async def _login(api: AsyncClient, email: str, password: str) -> dict[str, Any]:
     response = await api.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert response.status_code == 200, response.text
-    return response.json()
+    return dict(response.json())
 
 
 class TestLogin:
