@@ -427,7 +427,7 @@ class TestDateRange:
     async def test_a_range_excludes_what_falls_outside_it(
         self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
     ) -> None:
-        only = await _class(staff, title="Range Excludes")
+        only = await _class(staff, title=f"Range Excludes {uuid.uuid4().hex[:6]}")
         early = await _session(staff, db, accounts, class_id=only["id"], on=dt.date(2027, 3, 1))
         inside = await _session(staff, db, accounts, class_id=only["id"], on=dt.date(2027, 3, 10))
         late = await _session(staff, db, accounts, class_id=only["id"], on=dt.date(2027, 3, 20))
@@ -457,7 +457,7 @@ class TestDateRange:
         `date_to` silently drops everything after 00:00 that day, which is the
         whole day. The 23:30 class is what catches that.
         """
-        only = await _class(staff, title="Range Inclusive")
+        only = await _class(staff, title=f"Range Inclusive {uuid.uuid4().hex[:6]}")
         first = await _session(
             staff, db, accounts, class_id=only["id"], on=dt.date(2027, 4, 5), at="06:00:00"
         )
@@ -490,7 +490,7 @@ class TestDateRange:
         and the failure would look like one booking missing from a week for no
         reason anybody could see.
         """
-        only = await _class(staff, title="Range Midnight")
+        only = await _class(staff, title=f"Range Midnight {uuid.uuid4().hex[:6]}")
         after_midnight = await _session(
             staff, db, accounts, class_id=only["id"], on=dt.date(2027, 5, 3), at="00:30:00"
         )
@@ -524,7 +524,7 @@ class TestDateRange:
     async def test_one_end_alone_is_an_open_range(
         self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
     ) -> None:
-        only = await _class(staff, title="Range Open")
+        only = await _class(staff, title=f"Range Open {uuid.uuid4().hex[:6]}")
         before = await _session(staff, db, accounts, class_id=only["id"], on=dt.date(2027, 6, 1))
         after = await _session(staff, db, accounts, class_id=only["id"], on=dt.date(2027, 6, 30))
         for session in (before, after):
@@ -549,7 +549,7 @@ class TestDateRange:
     ) -> None:
         """Filters compose: a class and a range together mean both, and `total`
         counts the intersection rather than either one alone."""
-        wanted = await _class(staff, title="Range Combined")
+        wanted = await _class(staff, title=f"Range Combined {uuid.uuid4().hex[:6]}")
         inside = await _session(staff, db, accounts, class_id=wanted["id"], on=dt.date(2027, 7, 10))
         outside = await _session(
             staff, db, accounts, class_id=wanted["id"], on=dt.date(2027, 8, 10)
@@ -578,7 +578,7 @@ class TestDateRange:
         """An end before a start is an empty range, not a bad request. A form can
         hold that state for a keystroke while somebody retypes a month, and a 422
         mid-typing is worse than an empty list."""
-        only = await _class(staff, title="Range Backwards")
+        only = await _class(staff, title=f"Range Backwards {uuid.uuid4().hex[:6]}")
         session = await _session(staff, db, accounts, class_id=only["id"], on=dt.date(2027, 9, 15))
         await _book(staff, session["id"], (await _member(staff))["id"])
 

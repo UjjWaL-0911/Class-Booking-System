@@ -27,8 +27,19 @@ VALID_CLASS: dict[str, Any] = {
 }
 
 
+def _class_body(**overrides: Any) -> dict[str, Any]:
+    """A valid class, with a title nothing else in the suite has used.
+
+    Titles are unique among live classes, and this database is shared and never
+    truncated — `booking_events` refuses TRUNCATE by design — so a fixed title
+    would pass on a clean database and 409 on every run after it. The tests that
+    are *about* the title pass their own.
+    """
+    return {**VALID_CLASS, "title": f"Vinyasa Flow {uuid.uuid4().hex[:8]}", **overrides}
+
+
 async def _create(staff: AsyncClient, **overrides: Any) -> dict[str, Any]:
-    response = await staff.post("/api/v1/classes", json={**VALID_CLASS, **overrides})
+    response = await staff.post("/api/v1/classes", json=_class_body(**overrides))
     assert response.status_code == 201, response.text
     return dict(response.json())
 
@@ -37,7 +48,7 @@ class TestCreate:
     async def test_staff_can_create_a_class(self, staff: AsyncClient) -> None:
         body = await _create(staff)
 
-        assert body["title"] == "Vinyasa Flow"
+        assert body["title"].startswith("Vinyasa Flow")
         assert body["discipline"] == "yoga"
         assert body["default_duration_min"] == 60
         assert body["default_capacity"] == 20
@@ -46,9 +57,10 @@ class TestCreate:
         assert body["version"] == 1
 
     async def test_whitespace_is_trimmed(self, staff: AsyncClient) -> None:
-        body = await _create(staff, title="  Spin Class  ", discipline=" cycling ")
+        tag = uuid.uuid4().hex[:8]
+        body = await _create(staff, title=f"  Spin Class {tag}  ", discipline=" cycling ")
 
-        assert body["title"] == "Spin Class"
+        assert body["title"] == f"Spin Class {tag}"
         assert body["discipline"] == "cycling"
 
     @pytest.mark.parametrize(
@@ -65,12 +77,12 @@ class TestCreate:
     async def test_invalid_values_are_rejected(
         self, staff: AsyncClient, field: str, value: Any
     ) -> None:
-        response = await staff.post("/api/v1/classes", json={**VALID_CLASS, field: value})
+        response = await staff.post("/api/v1/classes", json=_class_body(**{field: value}))
 
         assert response.status_code == 422
 
     async def test_description_may_be_omitted(self, staff: AsyncClient) -> None:
-        payload = {k: v for k, v in VALID_CLASS.items() if k != "description"}
+        payload = {k: v for k, v in _class_body().items() if k != "description"}
         response = await staff.post("/api/v1/classes", json=payload)
 
         assert response.status_code == 201
@@ -83,7 +95,7 @@ class TestRoleEnforcement:
     token — what a UI would render is irrelevant."""
 
     async def test_an_instructor_cannot_create_a_class(self, instructor: AsyncClient) -> None:
-        response = await instructor.post("/api/v1/classes", json=VALID_CLASS)
+        response = await instructor.post("/api/v1/classes", json=_class_body())
 
         assert response.status_code == 403
         assert response.json()["code"] == "permission_denied"
@@ -128,7 +140,7 @@ class TestRoleEnforcement:
 
     async def test_an_unauthenticated_caller_gets_401(self, api: AsyncClient) -> None:
         assert (await api.get("/api/v1/classes")).status_code == 401
-        assert (await api.post("/api/v1/classes", json=VALID_CLASS)).status_code == 401
+        assert (await api.post("/api/v1/classes", json=_class_body())).status_code == 401
 
 
 class TestUpdate:
@@ -152,7 +164,10 @@ class TestUpdate:
         updated = (
             await staff.patch(
                 f"/api/v1/classes/{created['id']}",
-                json={"version": created["version"], "title": "Renamed"},
+                json={
+                    "version": created["version"],
+                    "title": f"Renamed {uuid.uuid4().hex[:8]}",
+                },
             )
         ).json()
 
@@ -162,15 +177,16 @@ class TestUpdate:
         """Two staff with the class open, both hitting save. Without this the
         second silently overwrites the first."""
         created = await _create(staff)
+        tag = uuid.uuid4().hex[:8]
         stale = created["version"]
         await staff.patch(
             f"/api/v1/classes/{created['id']}",
-            json={"version": stale, "title": "First edit"},
+            json={"version": stale, "title": f"First edit {tag}"},
         )
 
         second = await staff.patch(
             f"/api/v1/classes/{created['id']}",
-            json={"version": stale, "title": "Second edit"},
+            json={"version": stale, "title": f"Second edit {tag}"},
         )
 
         assert second.status_code == 409
@@ -179,18 +195,19 @@ class TestUpdate:
 
     async def test_the_first_edit_survives_the_rejected_one(self, staff: AsyncClient) -> None:
         created = await _create(staff)
+        tag = uuid.uuid4().hex[:8]
         stale = created["version"]
         await staff.patch(
             f"/api/v1/classes/{created['id']}",
-            json={"version": stale, "title": "First edit"},
+            json={"version": stale, "title": f"First edit {tag}"},
         )
         await staff.patch(
             f"/api/v1/classes/{created['id']}",
-            json={"version": stale, "title": "Second edit"},
+            json={"version": stale, "title": f"Second edit {tag}"},
         )
 
         current = (await staff.get(f"/api/v1/classes/{created['id']}")).json()
-        assert current["title"] == "First edit"
+        assert current["title"] == f"First edit {tag}"
 
     async def test_updating_a_missing_class_is_404(self, staff: AsyncClient) -> None:
         response = await staff.patch(
@@ -354,3 +371,93 @@ class TestRooms:
         )
 
         assert response.status_code == 403
+
+
+class TestUniqueTitle:
+    """One live class per title.
+
+    Two classes called the same thing is a data-entry mistake that costs more
+    than it looks: goal 3 schedules a session against a class *by id*, so a
+    duplicate silently splits one timetable across two rows, and goal 8's
+    breakdown then reports two half-popular classes instead of one busy one.
+    """
+
+    async def test_a_duplicate_title_is_refused(self, staff: AsyncClient) -> None:
+        body = _class_body(title=f"Unique {uuid.uuid4().hex[:8]}")
+        assert (await staff.post("/api/v1/classes", json=body)).status_code == 201
+
+        again = await staff.post("/api/v1/classes", json=body)
+
+        assert again.status_code == 409
+        assert "already offered" in again.json()["message"]
+
+    async def test_case_does_not_make_it_a_different_class(
+        self, staff: AsyncClient
+    ) -> None:
+        """"Vinyasa Flow" and "vinyasa flow" are one class to everybody except a
+        byte comparison. A case-sensitive rule here would be close to decorative."""
+        title = f"Shouted {uuid.uuid4().hex[:8]}"
+        made = await staff.post("/api/v1/classes", json=_class_body(title=title))
+        assert made.status_code == 201, made.text
+
+        shouted = await staff.post("/api/v1/classes", json=_class_body(title=title.upper()))
+
+        assert shouted.status_code == 409
+
+    async def test_renaming_onto_an_existing_title_is_refused(
+        self, staff: AsyncClient
+    ) -> None:
+        """The insert is the obvious path; the rename is the one a check written
+        in the service would have been most likely to miss."""
+        taken = _class_body(title=f"Taken {uuid.uuid4().hex[:8]}")
+        assert (await staff.post("/api/v1/classes", json=taken)).status_code == 201
+        other = (await staff.post("/api/v1/classes", json=_class_body())).json()
+
+        renamed = await staff.patch(
+            f"/api/v1/classes/{other['id']}",
+            json={"title": taken["title"], "version": other["version"]},
+        )
+
+        assert renamed.status_code == 409
+
+    async def test_an_archived_title_can_be_used_again(self, staff: AsyncClient) -> None:
+        """Archiving means "not offered any more", and a name nobody is offering
+        should be available. The index is partial for exactly this."""
+        title = f"Retired {uuid.uuid4().hex[:8]}"
+        retiring = (await staff.post("/api/v1/classes", json=_class_body(title=title))).json()
+        archived = await staff.post(f"/api/v1/classes/{retiring['id']}/archive")
+        assert archived.status_code == 200, archived.text
+
+        reused = await staff.post("/api/v1/classes", json=_class_body(title=title))
+
+        assert reused.status_code == 201
+
+    async def test_restoring_into_a_taken_title_is_refused(
+        self, staff: AsyncClient
+    ) -> None:
+        """Looks like a bug and is not. Restoring would produce exactly the
+        duplicate the index exists to prevent, so it has to fail — and it fails
+        with a 409 naming the problem rather than a 500."""
+        title = f"Contested {uuid.uuid4().hex[:8]}"
+        original = (await staff.post("/api/v1/classes", json=_class_body(title=title))).json()
+        archived = await staff.post(f"/api/v1/classes/{original['id']}/archive")
+        assert archived.status_code == 200, archived.text
+        made = await staff.post("/api/v1/classes", json=_class_body(title=title))
+        assert made.status_code == 201, made.text
+
+        restored = await staff.post(f"/api/v1/classes/{original['id']}/restore")
+
+        assert restored.status_code == 409
+
+    async def test_the_title_is_trimmed_before_it_is_compared(
+        self, staff: AsyncClient
+    ) -> None:
+        """A trailing space is not a different class. The service strips on the
+        way in, so the stored value is what the index compares."""
+        title = f"Spaced {uuid.uuid4().hex[:8]}"
+        made = await staff.post("/api/v1/classes", json=_class_body(title=title))
+        assert made.status_code == 201, made.text
+
+        padded = await staff.post("/api/v1/classes", json=_class_body(title=f"  {title}  "))
+
+        assert padded.status_code == 409

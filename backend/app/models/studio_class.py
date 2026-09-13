@@ -9,7 +9,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, Integer
+from sqlalchemy import CheckConstraint, Index, Integer, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -26,6 +26,9 @@ class StudioClass(Base, TimestampMixin):
     __tablename__ = "classes"
 
     id: Mapped[UuidPk]
+
+    # Unique among live classes, case-insensitively — see the index in
+    # __table_args__ and the migration that creates it.
     title: Mapped[Str]
     description: Mapped[Str] = mapped_column(server_default="")
 
@@ -67,6 +70,18 @@ class StudioClass(Base, TimestampMixin):
     __table_args__ = (
         CheckConstraint("default_duration_min > 0", name="duration_positive"),
         CheckConstraint("default_capacity > 0", name="capacity_positive"),
+        # One live class per title, compared case-insensitively. Declared here so
+        # the model is the whole truth about the table, though the migration is
+        # what actually creates it — an expression index on `lower(title)`,
+        # partial on the rows that are still offered.
+        # `text()` rather than `func.lower(title)`: `title` is an annotation with
+        # no assignment, so the name does not exist in the class body to refer to.
+        Index(
+            "one_active_class_title",
+            text("lower(title)"),
+            unique=True,
+            postgresql_where=text("archived_at IS NULL"),
+        ),
     )
 
     @property

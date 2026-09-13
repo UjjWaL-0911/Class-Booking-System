@@ -103,6 +103,13 @@ CONSTRAINT_ERRORS: dict[str, tuple[type[DomainError], str]] = {
     "uq_users_email": (Conflict, "An account with that email already exists."),
     "uq_members_email": (Conflict, "A member with that email already exists."),
     "uq_rooms_name": (Conflict, "A room with that name already exists."),
+    # Partial and case-insensitive, so this also fires when an archived class is
+    # restored into a name that has since been taken — which is why the message
+    # says "already offered" rather than "already created".
+    "one_active_class_title": (
+        Conflict,
+        "A class with that title is already offered. Titles are compared without case.",
+    ),
     "uq_dismissal_member_expiry": (
         Conflict,
         "That alert has already been dismissed.",

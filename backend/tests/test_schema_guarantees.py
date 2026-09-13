@@ -55,9 +55,11 @@ async def _seed(db: AsyncSession) -> dict[str, uuid.UUID]:
     await db.execute(
         text(
             "INSERT INTO classes (id, title, discipline, default_duration_min, "
-            "default_capacity) VALUES (:id, 'Vinyasa Flow', 'yoga', 60, 20)"
+            "default_capacity) VALUES (:id, :title, 'yoga', 60, 20)"
         ),
-        {"id": ids["cls"]},
+        # Tagged like the email above, and for the same reason: live class titles
+        # are unique, and this database is never truncated between runs.
+        {"id": ids["cls"], "title": f"Vinyasa Flow {tag}"},
     )
     await db.execute(
         text(
@@ -140,7 +142,8 @@ class TestDerivedColumns:
         ).scalar_one()
 
         await db.execute(
-            text("UPDATE classes SET title = 'Renamed' WHERE id = :id"), {"id": ids["cls"]}
+            text("UPDATE classes SET title = :title WHERE id = :id"),
+            {"id": ids["cls"], "title": f"Renamed {ids['cls'].hex[:8]}"},
         )
         after = (
             await db.execute(
