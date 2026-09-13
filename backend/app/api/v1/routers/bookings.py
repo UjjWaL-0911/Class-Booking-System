@@ -42,7 +42,9 @@ from app.schemas.booking_search import (
     SortDirection,
 )
 from app.schemas.common import Page
+from app.schemas.term_booking import TermBookingCreate, TermBookingReport
 from app.services.booking_service import BookingService
+from app.services.term_booking_service import TermBookingService
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 
@@ -172,6 +174,36 @@ async def create_booking(
     )
     await db.commit()
     return _to_out(await service.get(booking.id))
+
+
+@router.post(
+    "/term",
+    response_model=TermBookingReport,
+    status_code=status.HTTP_201_CREATED,
+    summary="Book a member into a whole term of a class",
+)
+async def book_term(
+    payload: TermBookingCreate,
+    db: DbSession,
+    settings: Config,
+    now: Now,
+    staff: StaffUser,
+) -> TermBookingReport:
+    """Bulk-book one member across a date range, reporting every outcome.
+
+    Mounted at ``/term`` rather than ``/recurring`` because that is the word a
+    studio uses, and before ``/{booking_id}`` so the literal wins the route match.
+
+    The report distinguishes three outcomes. A full session is **not** a failure —
+    the member joins the waiting list, which is goal 4 working — so it is listed
+    separately from the sessions that produced no booking at all. Each skip names
+    the rule that refused it rather than a sentence the client has to parse.
+    """
+    service = TermBookingService(db, settings)
+    await service.require_class(payload.class_id)
+    report = await service.book_term(payload, actor=staff, now=now)
+    await db.commit()
+    return report
 
 
 @router.post(

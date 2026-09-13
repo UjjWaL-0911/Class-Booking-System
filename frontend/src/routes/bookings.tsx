@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { BookingFilters } from '@/components/domain/booking-filters'
+import { BookingRowActions } from '@/components/domain/booking-row-actions'
 import { CancelBookingDialog, type CancelTarget } from '@/components/domain/cancel-booking-dialog'
 import { StatusChip } from '@/components/domain/chips'
 import { TakeBookingDialog } from '@/components/domain/take-booking-dialog'
+import { TermBookingDialog } from '@/components/domain/term-booking-dialog'
 import { Button } from '@/components/ui/button'
 import { Panel } from '@/components/ui/panel'
 import { Pagination } from '@/components/ui/pagination'
@@ -44,6 +46,7 @@ export function BookingsPage() {
   const [params, setParams] = useSearchParams()
   const [booking, setBooking] = useState(false)
   const [cancelling, setCancelling] = useState<CancelTarget | null>(null)
+  const [bookingTerm, setBookingTerm] = useState(false)
 
   const q = params.get('q') ?? ''
   const classId = params.get('class') ?? ''
@@ -95,9 +98,13 @@ export function BookingsPage() {
         }
         actions={
           isStaff && (
-            <Button variant="primary" onClick={() => setBooking(true)}>
-              Take a booking
-            </Button>
+            <>
+              {/* Next to the single booking, not in a menu: same job, larger scale. */}
+              <Button onClick={() => setBookingTerm(true)}>Book a term</Button>
+              <Button variant="primary" onClick={() => setBooking(true)}>
+                Take a booking
+              </Button>
+            </>
           )
         }
       />
@@ -196,37 +203,11 @@ export function BookingsPage() {
                   </Td>
                   <Td className="text-graphite">{formatInstant(item.booked_at, timeZone)}</Td>
                   <Td className="text-right">
-                    <span className="inline-flex items-center gap-4">
-                      {/* Exactly the server's rule, not a looser one: staff
-                          only, and only while the booking is still active —
-                          offering more would be a button that fails. */}
-                      {isStaff && (item.status === 'booked' || item.status === 'waitlisted') && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCancelling({
-                              bookingId: item.id,
-                              memberName: item.member_name,
-                              status: item.status,
-                              className: item.class_title,
-                              discipline: item.discipline,
-                            })
-                          }
-                          className="text-12 text-graphite underline-offset-2 hover:text-bad-ink hover:underline"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                      {/* Underlined always, not on hover: this is the way into
-                          goal 9's timeline and a grey word at the edge of a wide
-                          table read as a label rather than a link. */}
-                      <Link
-                        to={routes.bookingHistory(item.id)}
-                        className="text-12 text-graphite underline decoration-1 underline-offset-4 hover:text-ink"
-                      >
-                        History
-                      </Link>
-                    </span>
+                    <BookingRowActions
+                      booking={item}
+                      canCancel={isStaff}
+                      onCancel={setCancelling}
+                    />
                   </Td>
                 </Tr>
               ))}
@@ -245,6 +226,7 @@ export function BookingsPage() {
 
       <TakeBookingDialog open={booking} onOpenChange={setBooking} />
       <CancelBookingDialog target={cancelling} onClose={() => setCancelling(null)} />
+      <TermBookingDialog open={bookingTerm} onOpenChange={setBookingTerm} />
     </Page>
   )
 }

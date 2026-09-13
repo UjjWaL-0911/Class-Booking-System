@@ -71,5 +71,42 @@ export interface BookingListItem {
   waitlist_position: number | null
 }
 
+// --- booking a whole term ----------------------------------------------------
+
+export type BookingSkipReason =
+  | 'already_booked'
+  | 'membership_expired'
+  | 'session_started'
+  | 'class_archived'
+  | 'refused'
+
+export interface TermBookingCreate {
+  member_id: Uuid
+  class_id: Uuid
+  date_from: LocalDate
+  date_to: LocalDate
+  /** Monday is 0. Omitted means every session of the class in the range. */
+  weekdays?: number[] | null
+  note?: string | null
+}
+
+export interface TermBookingOutcome {
+  session_id: Uuid
+  session_date: LocalDate
+  start_time: LocalTime
+  booking_id: Uuid | null
+  waitlisted: boolean
+  reason: BookingSkipReason | null
+  detail: string | null
+}
+
+/** Three outcomes, not two: a full session waitlists, which is a result not a skip. */
+export interface TermBookingReport {
+  requested: number
+  booked: TermBookingOutcome[]
+  waitlisted: TermBookingOutcome[]
+  skipped: TermBookingOutcome[]
+}
+
 export type BookingSort = 'booked_at' | 'status' | 'session'
 export type SortDirection = 'asc' | 'desc'

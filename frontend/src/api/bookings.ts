@@ -2,14 +2,16 @@ import { downloadFile, request } from './client'
 import type {
   Booking,
   BookingEvent,
-  LocalDate,
   BookingListItem,
   BookingSort,
   BookingStatus,
   BookingWithTimeline,
   CancelResult,
+  LocalDate,
   Page,
   SortDirection,
+  TermBookingCreate,
+  TermBookingReport,
   Uuid,
 } from './types'
 
@@ -71,6 +73,18 @@ export function createBooking(
  * from the seat count alone, and the person at the desk needs to know whether to
  * say "you're in" to somebody.
  */
+/**
+ * Book one member into a whole term (the recurring-bookings stretch idea).
+ *
+ * Returns a report rather than a list of bookings, because some of the term will
+ * usually not have been booked — full sessions waitlist, an already-booked week is
+ * skipped — and a caller that only got the successes could not tell the member
+ * what actually happened.
+ */
+export function bookTerm(body: TermBookingCreate): Promise<TermBookingReport> {
+  return request<TermBookingReport>('/bookings/term', { method: 'POST', body })
+}
+
 export function cancelBooking(bookingId: Uuid, note?: string): Promise<CancelResult> {
   return request<CancelResult>(`/bookings/${bookingId}/cancel`, {
     method: 'POST',

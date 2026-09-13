@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   addBookingNote,
+  bookTerm,
   cancelBooking,
   createBooking,
   getBookingTimeline,
@@ -78,6 +79,20 @@ export function useCreateBooking() {
 }
 
 /** Cancelling may promote the next eligible person; the result says whether it did. */
+/**
+ * Book a whole term for one member.
+ *
+ * Invalidates everything a booking write touches, because it may have created
+ * fourteen of them — and the same reason applies fourteen times over.
+ */
+export function useBookTerm() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: bookTerm,
+    onSuccess: () => invalidateAfterBookingWrite(client),
+  })
+}
+
 export function useCancelBooking() {
   const client = useQueryClient()
   return useMutation({
