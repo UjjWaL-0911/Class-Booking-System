@@ -151,6 +151,14 @@ function Hero({
           >
             What it replaces
           </a>
+          {/* The one link on this page that shows the product rather than
+              describing it. Worth a place in the nav for that reason alone. */}
+          <Link
+            to={routes.schedule}
+            className="tracked text-11 text-graphite transition-colors duration-[120ms] hover:text-ink"
+          >
+            This week
+          </Link>
           <Link
             to={door.to}
             className="tracked text-11 text-graphite transition-colors duration-[120ms] hover:text-ink"
@@ -230,12 +238,20 @@ function Closing({ door }: { door: Door }) {
   return (
     <section className="mx-auto max-w-[1220px] px-8 pb-32 pt-8 lg:px-14">
       <div className="border-t border-rule pt-16">
-        <Link
-          to={door.to}
-          className="tracked inline-block border border-brass px-9 py-4 text-11 text-ink transition-colors duration-[120ms] hover:bg-brass hover:text-paper"
-        >
-          Open the studio
-        </Link>
+        <div className="flex flex-wrap items-center gap-8">
+          <Link
+            to={door.to}
+            className="tracked inline-block border border-brass px-9 py-4 text-11 text-ink transition-colors duration-[120ms] hover:bg-brass hover:text-paper"
+          >
+            Open the studio
+          </Link>
+          <Link
+            to={routes.schedule}
+            className="tracked text-11 text-graphite underline decoration-1 underline-offset-4 transition-colors duration-[120ms] hover:text-ink"
+          >
+            See what is on
+          </Link>
+        </div>
       </div>
     </section>
   )

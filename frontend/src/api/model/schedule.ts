@@ -2,6 +2,36 @@
 
 import type { Instant, LocalDate, LocalTime, Uuid } from './common'
 
+// --- the public schedule -----------------------------------------------------
+
+/**
+ * One class as a stranger sees it. Deliberately not a `Session`: the public
+ * endpoint has its own response model on the server for the same reason this
+ * type is separate here — nothing about the authenticated shape should be able
+ * to reach an anonymous page by inheritance.
+ */
+export interface PublicSession {
+  session_date: LocalDate
+  start_time: LocalTime
+  duration_min: number
+  class_title: string
+  discipline: string
+  description: string
+  instructor_name: string
+  room_name: string
+  spots_remaining: number
+  is_full: boolean
+}
+
+export interface PublicSchedule {
+  days_ahead: number
+  starts: LocalDate
+  ends: LocalDate
+  /** The server capped the list. The page says so rather than implying a full window. */
+  truncated: boolean
+  sessions: PublicSession[]
+}
+
 // --- sessions ---------------------------------------------------------------
 
 export interface Instructor {

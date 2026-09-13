@@ -25,6 +25,7 @@ from app.api.v1.routers import (
     exports,
     health,
     members,
+    public_schedule,
     rooms,
     sessions,
     users,
@@ -77,6 +78,11 @@ def create_app() -> FastAPI:
     for versioned in (
         auth.router,
         classes.router,
+        # Unauthenticated, and mounted alongside the rest on purpose: it is part of
+        # the API contract rather than infrastructure, so it carries the version
+        # prefix like everything else. What makes it public is the absence of a
+        # user dependency inside it, which is visible in one file.
+        public_schedule.router,
         rooms.router,
         users.router,
         members.router,

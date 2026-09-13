@@ -8,6 +8,7 @@ import { routes } from '@/lib/routes'
 import { AppShell } from '@/layout/app-shell'
 import { RequireSession } from '@/layout/require-session'
 import { LandingPage } from '@/routes/landing/landing'
+import { PublicSchedulePage } from '@/routes/schedule'
 import { SignInPage } from '@/routes/sign-in'
 import { TodayPage } from '@/routes/today'
 import { TimetablePage } from '@/routes/timetable'
@@ -36,6 +37,9 @@ const queryClient = createQueryClient()
 const router = createBrowserRouter([
   { path: routes.landing, element: <LandingPage /> },
   { path: routes.signIn, element: <SignInPage /> },
+  // Public, like the landing page: no session required, and deliberately
+  // outside RequireSession so a stranger is never bounced to sign-in.
+  { path: routes.schedule, element: <PublicSchedulePage /> },
   {
     element: <RequireSession />,
     children: [

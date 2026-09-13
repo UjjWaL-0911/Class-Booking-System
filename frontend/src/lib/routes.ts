@@ -12,6 +12,7 @@ export const routes = {
   /** Public. The landing page, which is not the sign-in page. */
   landing: '/',
   signIn: '/sign-in',
+  schedule: '/schedule',
 
   today: APP,
   timetable: `${APP}/timetable`,
