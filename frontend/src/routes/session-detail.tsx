@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '@/api/errors'
 
 import { CoInstructors } from '@/components/domain/co-instructors'
+import { EditSessionDialog } from '@/components/domain/edit-session-dialog'
 import { ExportRegisterButton } from '@/components/domain/export-register-button'
 import { SessionOccupancy } from '@/components/domain/session-occupancy'
 import { SessionRoster } from '@/components/domain/session-roster'
@@ -37,6 +38,7 @@ export function SessionDetailPage() {
   const deleteSession = useDeleteSession()
 
   const [booking, setBooking] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   if (session.isPending) return <BootScreen>Opening the class</BootScreen>
@@ -88,6 +90,13 @@ export function SessionDetailPage() {
         actions={
           <>
             <ExportRegisterButton session={data} />
+            {/* Editing stays available after the class has started — correcting
+                the room or the instructor on a session that already ran is a
+                normal thing to need, and the server refuses the parts that would
+                not make sense. Taking a booking does not. */}
+            {isStaff && (
+              <Button onClick={() => setEditing(true)}>Edit this session</Button>
+            )}
             {isStaff && !started && (
               <Button variant="primary" onClick={() => setBooking(true)}>
                 Take a booking
@@ -134,6 +143,7 @@ export function SessionDetailPage() {
       </div>
 
       <TakeBookingDialog open={booking} onOpenChange={setBooking} session={data} />
+      <EditSessionDialog session={data} open={editing} onOpenChange={setEditing} />
 
       <Dialog
         open={confirmDelete}

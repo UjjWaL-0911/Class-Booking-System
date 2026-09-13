@@ -228,6 +228,13 @@ class SessionService:
             await self._require_active_instructor(payload.primary_instructor_id)
             await self._require_not_co_instructor(session_id, payload.primary_instructor_id)
             session.primary_instructor_id = payload.primary_instructor_id
+            # Changing the foreign key does not change the object already loaded
+            # behind it. `expire_on_commit=False` keeps that stale object alive,
+            # and a later query returns this same instance from the identity map
+            # without overwriting a relationship it has already populated — so the
+            # response would name the *previous* instructor while the database
+            # held the new one. Expiring it forces the next read to reload.
+            self.db.expire(session, ["primary_instructor"])
 
         if payload.session_date is not None or payload.start_time is not None:
             local = session.starts_at.astimezone(self.settings.tz)

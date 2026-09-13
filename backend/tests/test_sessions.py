@@ -583,6 +583,40 @@ class TestUpdate:
         assert response.status_code == 200
 
 
+class TestEditResponseIsFresh:
+    """The response to an edit must describe the row the edit produced.
+
+    `expire_on_commit=False` keeps a written object alive with everything it had
+    already loaded, and a later query returns that same instance from the identity
+    map without overwriting a relationship it has already populated. So changing
+    `primary_instructor_id` left the loaded `primary_instructor` object pointing at
+    the previous person, and the response named them — while the database held the
+    new one. A substitute swap looked like it had failed.
+    """
+
+    async def test_changing_the_instructor_is_reflected_in_the_response(
+        self,
+        staff: AsyncClient,
+        db: AsyncSession,
+        accounts: dict[str, str],
+    ) -> None:
+        session = await _session(staff, db, accounts)
+        substitute = await _user_id(db, accounts["staff"])
+        assert session["primary_instructor"]["id"] != substitute
+
+        response = await staff.patch(
+            f"/api/v1/sessions/{session['id']}",
+            json={"version": session["version"], "primary_instructor_id": substitute},
+        )
+
+        assert response.status_code == 200, response.text
+        # The response, not a follow-up read: this is what the interface renders.
+        assert response.json()["primary_instructor"]["id"] == substitute
+
+        fresh = await staff.get(f"/api/v1/sessions/{session['id']}")
+        assert fresh.json()["primary_instructor"]["id"] == substitute
+
+
 class TestCapacityIncreaseFillsTheWaitlist:
     """Raising capacity promotes from the waitlist (goals 3 and 4 together).
 
