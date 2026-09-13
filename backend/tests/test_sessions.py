@@ -26,7 +26,7 @@ FUTURE = dt.date(2027, 3, 2)
 async def _room(staff: AsyncClient) -> str:
     response = await staff.post("/api/v1/rooms", json={"name": f"Studio {uuid.uuid4().hex[:8]}"})
     assert response.status_code == 201, response.text
-    return response.json()["id"]
+    return str(response.json()["id"])
 
 
 async def _class(staff: AsyncClient, **overrides: Any) -> dict[str, Any]:
@@ -40,7 +40,7 @@ async def _class(staff: AsyncClient, **overrides: Any) -> dict[str, Any]:
     }
     response = await staff.post("/api/v1/classes", json=payload)
     assert response.status_code == 201, response.text
-    return response.json()
+    return dict(response.json())
 
 
 async def _user_id(db: AsyncSession, email: str) -> str:
@@ -78,7 +78,7 @@ async def _session(
     }
     response = await staff.post("/api/v1/sessions", json=payload)
     assert response.status_code == 201, response.text
-    return response.json()
+    return dict(response.json())
 
 
 class TestCreate:
@@ -581,6 +581,164 @@ class TestUpdate:
         )
 
         assert response.status_code == 200
+
+
+class TestCapacityIncreaseFillsTheWaitlist:
+    """Raising capacity promotes from the waitlist (goals 3 and 4 together).
+
+    Goal 4's principle is that a free seat never sits idle beside somebody waiting,
+    and raising capacity creates seats exactly as a cancellation does. Without this,
+    the only way to move the queue would be to cancel a booking and rebook it — and
+    the studio would have to know that.
+
+    These tests exist because the behaviour was documented in three places and
+    implemented in none: `BookingService.promote_to_fill` was written, correct, and
+    had no call site.
+    """
+
+    async def _full_session_with_waiting(
+        self,
+        staff: AsyncClient,
+        db: AsyncSession,
+        accounts: dict[str, str],
+        *,
+        capacity: int = 2,
+        extra: int = 2,
+    ) -> tuple[dict[str, Any], list[str]]:
+        """A session filled to capacity with `extra` members waiting behind it.
+
+        Booked through the API rather than inserted, so the waitlist order is the
+        one the system produced rather than one the test asserted into place.
+        """
+        session = await _session(staff, db, accounts, capacity=capacity)
+        member_ids: list[str] = []
+        for i in range(capacity + extra):
+            tag = uuid.uuid4().hex[:8]
+            member = (
+                await staff.post(
+                    "/api/v1/members",
+                    json={
+                        "full_name": f"Queue {i} {tag}",
+                        "email": f"q{i}-{tag}@example.com",
+                        "membership_expiry": "2030-01-01",
+                        "notes": "",
+                    },
+                )
+            ).json()
+            member_ids.append(member["id"])
+            booked = await staff.post(
+                "/api/v1/bookings",
+                json={"session_id": session["id"], "member_id": member["id"]},
+            )
+            assert booked.status_code == 201, booked.text
+        return session, member_ids
+
+    async def test_raising_capacity_promotes_the_earliest_waiting_member(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
+    ) -> None:
+        session, members = await self._full_session_with_waiting(staff, db, accounts)
+
+        response = await staff.patch(
+            f"/api/v1/sessions/{session['id']}",
+            json={"version": session["version"], "capacity": 3},
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["capacity"] == 3
+        assert body["booked_count"] == 3
+        assert body["waitlisted_count"] == 1
+
+        # The third member to book is the one who moved up, not the fourth.
+        rows = (
+            await staff.get(f"/api/v1/bookings?session_id={session['id']}&limit=50")
+        ).json()["items"]
+        by_member = {row["member_id"]: row["status"] for row in rows}
+        assert by_member[members[2]] == "booked"
+        assert by_member[members[3]] == "waitlisted"
+
+    async def test_promotion_is_bounded_by_the_new_capacity(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
+    ) -> None:
+        """Two seats created, two people promoted — not the whole queue."""
+        session, _ = await self._full_session_with_waiting(
+            staff, db, accounts, capacity=2, extra=3
+        )
+
+        body = (
+            await staff.patch(
+                f"/api/v1/sessions/{session['id']}",
+                json={"version": session["version"], "capacity": 4},
+            )
+        ).json()
+
+        assert body["booked_count"] == 4
+        assert body["waitlisted_count"] == 1
+
+    async def test_a_promotion_leaves_an_audit_event(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
+    ) -> None:
+        """Goal 9: no status changes without a record, including one nobody asked
+        for directly."""
+        session, members = await self._full_session_with_waiting(staff, db, accounts)
+        await staff.patch(
+            f"/api/v1/sessions/{session['id']}",
+            json={"version": session["version"], "capacity": 3},
+        )
+
+        rows = (
+            await staff.get(f"/api/v1/bookings?session_id={session['id']}&limit=50")
+        ).json()["items"]
+        promoted = next(r for r in rows if r["member_id"] == members[2])
+        timeline = (await staff.get(f"/api/v1/bookings/{promoted['id']}/timeline")).json()
+
+        moved = [
+            e
+            for e in timeline["events"]
+            if e["old_status"] == "waitlisted" and e["new_status"] == "booked"
+        ]
+        assert len(moved) == 1
+        assert moved[0]["is_system"] is True
+
+    async def test_lowering_capacity_promotes_nobody(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
+    ) -> None:
+        session, _ = await self._full_session_with_waiting(staff, db, accounts)
+
+        body = (
+            await staff.patch(
+                f"/api/v1/sessions/{session['id']}",
+                json={"version": session["version"], "capacity": 2},
+            )
+        ).json()
+
+        assert body["booked_count"] == 2
+        assert body["waitlisted_count"] == 2
+
+    async def test_an_expired_member_is_skipped_and_keeps_their_place(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
+    ) -> None:
+        """The same rule cancellation-promotion applies: promoting an expired member
+        would let them into a seat by the side door goal 4 closes."""
+        session, members = await self._full_session_with_waiting(staff, db, accounts)
+        lapsed = members[2]
+        await db.execute(
+            text("UPDATE members SET membership_expiry = '2020-01-01' WHERE id = :id"),
+            {"id": uuid.UUID(lapsed)},
+        )
+        await db.commit()
+
+        await staff.patch(
+            f"/api/v1/sessions/{session['id']}",
+            json={"version": session["version"], "capacity": 3},
+        )
+
+        rows = (
+            await staff.get(f"/api/v1/bookings?session_id={session['id']}&limit=50")
+        ).json()["items"]
+        by_member = {row["member_id"]: row["status"] for row in rows}
+        assert by_member[lapsed] == "waitlisted"
+        assert by_member[members[3]] == "booked"
 
 
 class TestDelete:

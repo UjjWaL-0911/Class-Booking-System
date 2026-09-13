@@ -151,10 +151,13 @@ async def update_session(
     payload: SessionUpdate,
     db: DbSession,
     settings: Config,
+    now: Now,
     staff: StaffUser,
 ) -> SessionOut:
+    """Raising capacity fills the new seats from the waitlist, in this same
+    transaction — so the response already reflects who moved up."""
     service = SessionService(db, settings)
-    session = await service.update(session_id, payload, staff)
+    session = await service.update(session_id, payload, staff, now)
     await db.commit()
     return await _render(service, await service.get(session.id, staff), settings)
 

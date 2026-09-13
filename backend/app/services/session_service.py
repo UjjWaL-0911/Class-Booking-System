@@ -24,6 +24,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import Settings, get_settings
 from app.core.errors import Conflict, NotFound, PermissionDenied, RuleViolation
 from app.core.time import to_utc
+from app.db.transaction import apply_local_timeouts, lock_session_row
 from app.models.booking import Booking
 from app.models.class_session import ClassSession, SessionCoInstructor
 from app.models.enums import BookingEventType, BookingStatus
@@ -194,8 +195,26 @@ class SessionService:
         return session
 
     async def update(
-        self, session_id: uuid.UUID, payload: SessionUpdate, viewer: User
+        self, session_id: uuid.UUID, payload: SessionUpdate, viewer: User, now: dt.datetime
     ) -> ClassSession:
+        """Edit a session.
+
+        Almost every field here is an ordinary optimistic update: check the
+        ``version``, assign, flush. **Capacity is not**, because it participates in
+        the booking invariant — raising it creates seats, and a seat that exists
+        while somebody is waiting for it has to be filled.
+
+        So a request that touches capacity takes the same ``FOR UPDATE`` a booking
+        takes, and it takes it *before* the row is read. Locking after the version
+        check would validate against a row another transaction could still be
+        changing; locking first means the version this method compares is the
+        version nobody else can move.
+        """
+        touches_capacity = payload.capacity is not None
+        if touches_capacity:
+            await apply_local_timeouts(self.db, self.settings)
+            await lock_session_row(self.db, session_id)
+
         session = await self.get(session_id, viewer)
 
         if session.version != payload.version:
@@ -223,23 +242,32 @@ class SessionService:
         if payload.duration_min is not None:
             session.duration_min = payload.duration_min
         if payload.capacity is not None:
-            await self._apply_capacity(session, payload.capacity)
+            await self._apply_capacity(session, payload.capacity, now)
 
         await self.db.flush()
         return session
 
-    async def _apply_capacity(self, session: ClassSession, capacity: int) -> None:
-        """Capacity changes participate in the booking invariant, so they are not
-        an ordinary field assignment.
+    async def _apply_capacity(
+        self, session: ClassSession, capacity: int, now: dt.datetime
+    ) -> None:
+        """Apply a capacity change. The caller holds the session row lock.
 
-        Reducing below the current Booked count is refused rather than allowed to
-        ride: the deferred capacity trigger fires on writes to ``bookings``, not to
-        ``sessions``, so nothing would catch the resulting oversell — and it would
-        leave no record of who caused it. Making staff cancel explicitly means
-        every removal has an actor and an audit event.
+        **Down** is refused rather than allowed to ride: the deferred capacity
+        trigger fires on writes to ``bookings``, not to ``sessions``, so nothing
+        would catch the resulting oversell — and it would leave no record of who
+        caused it. Making staff cancel explicitly means every removal has an actor
+        and an audit event.
 
-        Increasing with a waitlist is handled by the booking service, which owns
-        promotion; this only guards the reduction.
+        **Up** fills the new seats from the waitlist. Goal 4's principle is that a
+        free seat never sits idle beside somebody waiting, and raising capacity
+        creates seats exactly as a cancellation does — the studio should not have to
+        cancel and rebook a member to make the queue move.
+
+        The promotion itself belongs to ``BookingService``: eligibility, ordering
+        and the audit events are its rules, and a second implementation here would
+        be a second set of rules to keep in step. The import is local to this method
+        because the dependency runs only in this direction — the booking service
+        knows nothing about session editing.
         """
         booked = (await self.counts(session.id)).get(BookingStatus.BOOKED, 0)
         if capacity < booked:
@@ -249,7 +277,17 @@ class SessionService:
                 booked=booked,
                 requested=capacity,
             )
+
+        raised = capacity > session.capacity
         session.capacity = capacity
+        if not raised:
+            return
+
+        # Flush so the promotion counts against the new capacity rather than the old.
+        await self.db.flush()
+        from app.services.booking_service import BookingService
+
+        await BookingService(self.db, self.settings).promote_to_fill(session, now)
 
     async def delete(self, session_id: uuid.UUID, actor: User, now: dt.datetime) -> int:
         """Soft-delete a session and cancel what was booked on it.

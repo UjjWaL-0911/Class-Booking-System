@@ -46,11 +46,22 @@ export function useCreateSession() {
   })
 }
 
+/**
+ * Edit a session.
+ *
+ * Also invalidates bookings, for the same reason delete does: raising capacity
+ * fills the new seats from the waitlist in the same transaction, so a roster or a
+ * bookings list open beside this dialog is now describing rows that have moved.
+ */
 export function useUpdateSession() {
+  const client = useQueryClient()
   const invalidate = useSessionWriteInvalidation()
   return useMutation({
     mutationFn: ({ id, body }: { id: Uuid; body: SessionUpdate }) => updateSession(id, body),
-    onSuccess: (session) => invalidate(session.id),
+    onSuccess: (session) => {
+      invalidate(session.id)
+      void client.invalidateQueries({ queryKey: ['bookings'] })
+    },
   })
 }
 
