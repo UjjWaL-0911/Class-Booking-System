@@ -39,8 +39,12 @@ export function MemberRail() {
     >
       <div className="flex flex-col gap-12">
         <div>
+          {/* The landing page, matching the studio rail. The wordmark is the way
+              out of the tool rather than a shortcut to its first screen — the
+              nav below already leads there, and a name that goes to a page
+              already in the list is a link that does nothing new. */}
           <Link
-            to={routes.myBookings}
+            to={routes.landing}
             className="display inline-block whitespace-nowrap text-28 transition-colors duration-[120ms] hover:text-ink"
           >
             Mornington Studios
