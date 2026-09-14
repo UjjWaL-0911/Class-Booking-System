@@ -53,6 +53,13 @@ export interface Member {
   notes: string
   created_at: Instant
   updated_at: Instant
+  /**
+   * Whether this member can sign in and book for themselves.
+   *
+   * Whether, never the account and certainly never the hash — a boolean is all
+   * the desk needs and the most the interface should ever be told.
+   */
+  has_login: boolean
 }
 
 export interface MemberCreate {

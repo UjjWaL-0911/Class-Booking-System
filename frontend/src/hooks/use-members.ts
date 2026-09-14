@@ -1,5 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createMember, getMember, listMembers, updateMember, type MemberQuery } from '@/api/members'
+import {
+  createMember,
+  enableMemberLogin,
+  getMember,
+  listMembers,
+  updateMember,
+  type MemberQuery,
+} from '@/api/members'
 import { keys } from '@/lib/query-keys'
 import type { MemberCreate, MemberUpdate, Uuid } from '@/api/types'
 
@@ -54,6 +61,28 @@ export function useUpdateMember() {
       void client.invalidateQueries({ queryKey: ['members'] })
       void client.invalidateQueries({ queryKey: keys.member(member.id) })
       void client.invalidateQueries({ queryKey: ['alerts'] })
+    },
+  })
+}
+
+/**
+ * Switch on a member's login.
+ *
+ * Invalidates the member lists so the row stops offering a button that would now
+ * be refused — the endpoint answers a second call with a 409 rather than quietly
+ * resetting the password, so a stale row is a dead end rather than a surprise.
+ *
+ * Not the alerts feed, unlike the other two mutations here: a login has nothing
+ * to do with when a membership expires, which is the entire point of the feature.
+ */
+export function useEnableMemberLogin() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, password }: { id: Uuid; password: string }) =>
+      enableMemberLogin(id, password),
+    onSuccess: (member) => {
+      void client.invalidateQueries({ queryKey: ['members'] })
+      void client.invalidateQueries({ queryKey: keys.member(member.id) })
     },
   })
 }
