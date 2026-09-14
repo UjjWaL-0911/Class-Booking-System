@@ -63,7 +63,11 @@ class MyBookingRow(NamedTuple):
 
 
 async def my_bookings(
-    db: AsyncSession, *, member_id: uuid.UUID, limit: int = 100
+    db: AsyncSession,
+    *,
+    member_id: uuid.UUID,
+    limit: int = 100,
+    booking_id: uuid.UUID | None = None,
 ) -> list[MyBookingRow]:
     """This member's bookings, soonest session first.
 
@@ -99,6 +103,12 @@ async def my_bookings(
         .order_by(ClassSession.starts_at.desc())
         .limit(limit)
     )
+    # `booking_id` narrows to one row *in addition to* the member filter, never
+    # instead of it. An endpoint that looked a booking up by id alone would hand
+    # any member anybody's booking, which is the whole class of bug this module
+    # exists to make impossible.
+    if booking_id is not None:
+        query = query.where(Booking.id == booking_id)
 
     return [
         MyBookingRow(
@@ -108,6 +118,75 @@ async def my_bookings(
             instructor_name=row[3],
             room_name=row[4],
             waitlist_position=row[5],
+        )
+        for row in (await db.execute(query)).all()
+    ]
+
+
+class BookableRow(NamedTuple):
+    session: ClassSession
+    studio_class: StudioClass
+    instructor_name: str
+    room_name: str
+    my_status: BookingStatus | None
+
+
+async def bookable_sessions(
+    db: AsyncSession,
+    *,
+    member_id: uuid.UUID,
+    now: dt.datetime,
+    until: dt.datetime,
+    limit: int,
+) -> list[BookableRow]:
+    """Upcoming sessions a member could book, with their own status on each.
+
+    Forward only, from **now** rather than from midnight: a timetable still
+    offering this morning's class at four in the afternoon is worse than a short
+    one. Archived classes and soft-deleted sessions are excluded, because the
+    booking service would refuse them anyway and an option that cannot be taken is
+    not an option.
+
+    The member's own status arrives as a correlated subquery rather than an outer
+    join, so a member with no bookings pays nothing and the row count cannot be
+    multiplied by a join that matches twice. Only *active* bookings count: a
+    cancelled place is not a reason to stop somebody rebooking, and the question
+    this column answers is "may I book this".
+    """
+    mine = (
+        select(Booking.status)
+        .where(
+            Booking.session_id == ClassSession.id,
+            Booking.member_id == member_id,
+            Booking.status.in_(_CANCELLABLE),
+        )
+        .limit(1)
+        .correlate(ClassSession)
+        .scalar_subquery()
+    )
+
+    query = (
+        select(ClassSession, StudioClass, User.full_name, Room.name, mine)
+        .join(StudioClass, StudioClass.id == ClassSession.class_id)
+        .join(User, User.id == ClassSession.primary_instructor_id)
+        .join(Room, Room.id == ClassSession.room_id)
+        .where(
+            ClassSession.deleted_at.is_(None),
+            StudioClass.archived_at.is_(None),
+            ClassSession.starts_at >= now,
+            ClassSession.starts_at < until,
+        )
+        .order_by(ClassSession.starts_at)
+        .limit(limit)
+    )
+
+    return [
+        BookableRow(
+            session=row[0],
+            studio_class=row[1],
+            instructor_name=row[2],
+            room_name=row[3],
+            my_status=row[4],
         )
         for row in (await db.execute(query)).all()
     ]

@@ -23,7 +23,7 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.enums import BookingStatus
 
@@ -78,3 +78,59 @@ class MyMembership(BaseModel):
     email: str
     membership_expiry: dt.date
     is_expired: bool
+
+
+class BookableSession(BaseModel):
+    """One upcoming class, as the member choosing between them sees it.
+
+    Close to ``PublicSession`` but not the same model, and the difference is the
+    point: this one carries ``id``. The public timetable deliberately has none —
+    "no id that can be used against the authenticated API" — because a stranger
+    has nothing to do with one. A member does: naming a session is how they book
+    it. Two audiences, two shapes, neither filtered from the other.
+
+    ``my_status`` is the field that makes this worth its own endpoint. Without it
+    the interface would have to cross-reference the member's bookings against the
+    timetable in the browser and decide what the button says, which is a rule
+    living in the wrong place and drifting the first time a status is added.
+    """
+
+    id: uuid.UUID
+
+    session_date: dt.date
+    start_time: dt.time
+    duration_min: int
+
+    class_title: str
+    discipline: str
+    description: str
+    instructor_name: str
+    room_name: str
+
+    spots_remaining: int
+    is_full: bool
+
+    # This member's own active booking on this session — `booked`, `waitlisted`,
+    # or null if they have none. Cancelled and settled bookings do not count: the
+    # question the interface is asking is "may I book this", and only an active
+    # booking answers no.
+    my_status: BookingStatus | None = None
+
+
+class MyBookingCreate(BaseModel):
+    """Book myself onto a session.
+
+    **One field, and the absence of the other is the security model.** The staff
+    endpoint takes a ``member_id`` because the desk books on behalf of whoever is
+    standing at it. Here the member is the caller, resolved from the credential —
+    so there is no id to supply, and therefore none to tamper with.
+    """
+
+    session_id: uuid.UUID
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class MyCancellation(BaseModel):
+    """Calling off my own booking. The note is optional and is mine to write."""
+
+    note: str | None = Field(default=None, max_length=1000)
