@@ -193,10 +193,14 @@ async def instructor_pay(
 
 
 def is_teacher(user: User) -> bool:
-    """Anybody who may be put in front of a class — either role.
+    """Anybody who may be put in front of a class.
 
     The same rule the session service applies when it validates an instructor id. A
     payroll report that listed only ``role='instructor'`` would omit a staff member
     who teaches on Thursdays, and they are the person most likely to notice.
+
+    Delegates to the role rather than restating the pair. When ``member`` arrived
+    this function would otherwise have been a second place to remember, and the one
+    that decides whether somebody can be scheduled to teach.
     """
-    return user.role in (UserRole.STAFF, UserRole.INSTRUCTOR)
+    return user.role.is_teacher

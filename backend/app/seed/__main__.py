@@ -73,6 +73,7 @@ async def _seed(reset: bool) -> int:
         f"{summary.co_instructors} with a co-instructor"
         f"\n  {summary.bookings} booked, {summary.waitlisted} waitlisted, "
         f"{summary.cancelled} cancelled, {summary.settled} settled"
+        f"\n  {summary.member_logins} members can sign in and book for themselves"
     )
     for note in summary.notes[:3]:
         print(f"  - {note}")
@@ -83,6 +84,11 @@ async def _seed(reset: bool) -> int:
     print("  aryan@studio.demo      (instructor)")
     print("  marcus@studio.demo     (instructor)")
     print("  elena@studio.demo      (instructor)")
+    print("  ananya.iyer@example.com   (member, can book)")
+    # The lapsed one is the more interesting demo: the account works and the
+    # booking is refused by goal 4's expiry rule, which is the whole reason
+    # self-service needed no notion of payment.
+    print("  chirag.patel@example.com  (member, membership lapsed)")
     print(f"\n  password: {DEMO_PASSWORD}")
     return 0
 

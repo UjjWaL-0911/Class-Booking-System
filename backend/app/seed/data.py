@@ -159,6 +159,12 @@ class SeedMember(NamedTuple):
     # Days from today. Negative is already expired; 0-7 lands inside the alert
     # window; larger values are comfortably valid.
     expiry_offset_days: int
+    # Whether this member can sign in and book for themselves. Two of them can,
+    # and the pair is chosen deliberately: one with a valid membership who can
+    # book, and one whose membership has lapsed who can sign in and be refused.
+    # The second is the more interesting demo, because it is the whole reason
+    # self-service needed no notion of payment.
+    self_service: bool = False
 
 
 # Twenty-two members, running A to V by first name — fabricated on purpose and
@@ -166,9 +172,9 @@ class SeedMember(NamedTuple):
 # chosen so the alerts feed has something in it on the day a reviewer opens the
 # link: three already lapsed, four expiring this week, and the rest fine.
 MEMBERS = [
-    SeedMember("Ananya Iyer", "ananya.iyer@example.com", 210),
+    SeedMember("Ananya Iyer", "ananya.iyer@example.com", 210, self_service=True),
     SeedMember("Bhavna Rao", "bhavna.rao@example.com", 95),
-    SeedMember("Chirag Patel", "chirag.patel@example.com", -47),
+    SeedMember("Chirag Patel", "chirag.patel@example.com", -47, self_service=True),
     SeedMember("Divya Menon", "divya.menon@example.com", 3),
     SeedMember("Eshan Ghosh", "eshan.ghosh@example.com", 160),
     SeedMember("Farhan Qureshi", "farhan.qureshi@example.com", 6),

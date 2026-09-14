@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.core.deps import Config, CurrentUser, DbSession, Now
+from app.core.deps import Config, DbSession, Now, StudioUser
 from app.repositories.dashboard import load_dashboard
 from app.schemas.dashboard import (
     ClassCount,
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("", response_model=Dashboard, summary="Headline numbers and breakdowns")
 async def get_dashboard(
-    db: DbSession, viewer: CurrentUser, settings: Config, now: Now
+    db: DbSession, viewer: StudioUser, settings: Config, now: Now
 ) -> Dashboard:
     """Everything goal 8 asks for, from one query.
 

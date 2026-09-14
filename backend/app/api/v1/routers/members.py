@@ -21,9 +21,9 @@ import uuid
 
 from fastapi import APIRouter, Query, status
 
-from app.core.deps import AnyUser, DbSession, StaffUser
+from app.core.deps import Config, DbSession, StaffUser, StudioUser
 from app.schemas.common import Page
-from app.schemas.member import MemberCreate, MemberOut, MemberUpdate
+from app.schemas.member import MemberAccountCreate, MemberCreate, MemberOut, MemberUpdate
 from app.services.member_service import MemberService
 
 router = APIRouter(prefix="/members", tags=["members"])
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/members", tags=["members"])
 @router.get("", response_model=Page[MemberOut], summary="List and search members")
 async def list_members(
     db: DbSession,
-    viewer: AnyUser,
+    viewer: StudioUser,
     q: str | None = Query(
         default=None,
         max_length=100,
@@ -57,7 +57,7 @@ async def list_members(
 
 
 @router.get("/{member_id}", response_model=MemberOut, summary="Get one member")
-async def get_member(member_id: uuid.UUID, db: DbSession, viewer: AnyUser) -> MemberOut:
+async def get_member(member_id: uuid.UUID, db: DbSession, viewer: StudioUser) -> MemberOut:
     """404 rather than 403 for a member outside the viewer's scope — saying "this
     one exists but is not yours" would enumerate the membership one id at a time."""
     return MemberOut.model_validate(await MemberService(db, viewer).get(member_id))
@@ -83,5 +83,40 @@ async def update_member(
     for this member — by database trigger, so it cannot be forgotten. See goal 10.
     """
     member = await MemberService(db, staff).update(member_id, payload)
+    await db.commit()
+    return MemberOut.model_validate(member)
+
+
+@router.post(
+    "/{member_id}/account",
+    response_model=MemberOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Let this member sign in and book for themselves",
+)
+async def enable_self_service(
+    member_id: uuid.UUID,
+    payload: MemberAccountCreate,
+    db: DbSession,
+    settings: Config,
+    staff: StaffUser,
+) -> MemberOut:
+    """Switch on self-service booking for one member.
+
+    **Staff only, and there is no public equivalent.** A member account implies a
+    membership, a membership implies somebody paid, and an endpoint on the open
+    internet cannot know that — so somebody already inside vouches and hands the
+    password over, exactly as a colleague's account is created. `MemberAccountCreate`
+    carries the full argument.
+
+    **It grants an account, not a membership.** `membership_expiry` is untouched,
+    which is what keeps payment entirely outside this feature: whether this person
+    may book is still decided by goal 4's expiry rule, and a lapsed member who
+    signs in is refused at the point of booking by the rule that was already there.
+
+    Idempotent it is not — a second call is a 409 rather than a silent password
+    reset, because "this member can already sign in" and "please change their
+    password" are different requests and only one of them has been built.
+    """
+    member = await MemberService(db, staff).enable_self_service(member_id, payload, settings)
     await db.commit()
     return MemberOut.model_validate(member)

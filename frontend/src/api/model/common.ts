@@ -24,7 +24,10 @@ export type LocalTime = string
 export type Instant = string
 export type Uuid = string
 
-export type UserRole = 'staff' | 'instructor'
+// Three roles. `member` is a different kind of thing from the other two: staff
+// and instructors run the studio, a member attends it — which is why the member
+// screens live under their own shell rather than as a narrower view of this one.
+export type UserRole = 'staff' | 'instructor' | 'member'
 
 export type BookingStatus = 'booked' | 'waitlisted' | 'cancelled' | 'attended' | 'no_show'
 

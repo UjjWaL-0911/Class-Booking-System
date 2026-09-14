@@ -26,6 +26,7 @@ from app.core.rate_limit import LoginRateLimiter
 from app.core.security import decode_access_token
 from app.db.engine import get_session_factory
 from app.models.enums import UserRole
+from app.models.member import Member
 from app.models.user import User
 
 
@@ -145,4 +146,36 @@ def require_role(*roles: UserRole) -> Callable[[User], User]:
 
 
 StaffUser = Annotated[User, Depends(require_role(UserRole.STAFF))]
+MemberUser = Annotated[User, Depends(require_role(UserRole.MEMBER))]
+
+# Anyone who runs the studio: the guard for endpoints that were staff-and-
+# instructor when those were the only two roles. Spelled out rather than left as
+# "not a member", because a fourth role should have to be added here on purpose.
+StudioUser = Annotated[User, Depends(require_role(UserRole.STAFF, UserRole.INSTRUCTOR))]
 AnyUser = CurrentUser
+
+
+async def get_current_member(user: MemberUser, db: DbSession) -> Member:
+    """The member record behind a signed-in member account.
+
+    Every member-facing endpoint takes this rather than a ``member_id`` from the
+    request, and that is the whole security model of self-service booking: the
+    member being acted on is derived from the credential, never supplied by the
+    caller. ``BookingService.create`` has no row-level authorization of its own —
+    it trusts its caller to have decided whose booking this is — so a member
+    endpoint that read an id out of a request body would let anyone book, cancel
+    or read on behalf of anybody.
+
+    A member-role account with no linked member row is a provisioning bug rather
+    than a user error. It is refused rather than tolerated, because the
+    alternative is an authenticated session with no idea who it belongs to.
+    """
+    member = (
+        await db.execute(select(Member).where(Member.user_id == user.id))
+    ).scalar_one_or_none()
+    if member is None:
+        raise PermissionDenied("This account is not linked to a member record.")
+    return member
+
+
+CurrentMember = Annotated[Member, Depends(get_current_member)]

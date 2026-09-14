@@ -6,7 +6,7 @@ import { Field, TextInput } from '@/components/ui/field'
 import { BootScreen } from '@/components/ui/states'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useForm } from '@/hooks/use-form'
-import { useSession, useSignIn } from '@/hooks/use-auth'
+import { homeFor, useSession, useSignIn } from '@/hooks/use-auth'
 import { routes } from '@/lib/routes'
 import { emailFormat, required } from '@/lib/validation'
 
@@ -23,7 +23,7 @@ import { emailFormat, required } from '@/lib/validation'
  * would leave somebody retyping a correct password into a locked window.
  */
 export function SignInPage() {
-  const { status } = useSession()
+  const { status, user } = useSession()
   const location = useLocation()
   const navigate = useNavigate()
   const signIn = useSignIn()
@@ -42,8 +42,11 @@ export function SignInPage() {
   if (status === 'unknown') return <BootScreen>Just a moment</BootScreen>
 
   if (status === 'signed-in') {
+    // Where they were heading, if the gate sent them here. Otherwise their own
+    // home, which is a different screen for a member than for the studio — the
+    // two share a door and nothing behind it.
     const from = (location.state as { from?: string } | null)?.from
-    return <Navigate to={from ?? routes.today} replace />
+    return <Navigate to={from ?? homeFor(user?.role)} replace />
   }
 
   const error = signIn.error
@@ -69,7 +72,12 @@ export function SignInPage() {
             form.submit(() =>
               signIn.mutate(
                 { email: email.trim(), password },
-                { onSuccess: () => navigate(routes.today, { replace: true }) },
+                {
+                  // The signed-in user comes back with the response, so the
+                  // destination is known here rather than after a re-render.
+                  onSuccess: (signedIn) =>
+                    navigate(homeFor(signedIn.role), { replace: true }),
+                },
               ),
             )
           }}

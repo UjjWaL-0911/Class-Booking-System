@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { signIn, signOut } from '@/api/auth'
 import { getSessionState, subscribe } from '@/api/token-store'
 import type { SessionState } from '@/api/token-store'
+import { routes } from '@/lib/routes'
 import type { User } from '@/api/types'
 
 /**
@@ -34,6 +35,23 @@ export function useCurrentUser(): User {
 
 export function useIsStaff(): boolean {
   return useSession().user?.role === 'staff'
+}
+
+/**
+ * Whether this session belongs to a member rather than to the studio.
+ *
+ * Used to route, never to authorize: every member endpoint resolves the member
+ * from the credential and every studio endpoint refuses this role outright, so
+ * being wrong here makes the app land somebody on the wrong screen rather than
+ * showing them a row they should not see.
+ */
+export function useIsMember(): boolean {
+  return useSession().user?.role === 'member'
+}
+
+/** Where this person's app starts. Members and studio staff do not share a home. */
+export function homeFor(role: User['role'] | undefined): string {
+  return role === 'member' ? routes.myBookings : routes.today
 }
 
 export function useSignIn() {

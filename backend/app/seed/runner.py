@@ -29,7 +29,7 @@ from app.core.security import hash_password
 from app.core.time import to_utc
 from app.models.booking import Booking
 from app.models.class_session import ClassSession, SessionCoInstructor
-from app.models.enums import BookingStatus
+from app.models.enums import BookingStatus, UserRole
 from app.models.member import Member, MembershipAlertDismissal
 from app.models.room import Room
 from app.models.studio_class import StudioClass
@@ -50,6 +50,7 @@ class SeedSummary:
     sessions: int = 0
     co_instructors: int = 0
     members: int = 0
+    member_logins: int = 0
     bookings: int = 0
     waitlisted: int = 0
     cancelled: int = 0
@@ -104,6 +105,22 @@ class Seeder:
                 membership_expiry=self.today + dt.timedelta(days=seed_member.expiry_offset_days),
                 notes="",
             )
+            # A login, for the two members the demo needs to be able to sign in.
+            # Created exactly the way the endpoint creates one — a users row with
+            # role='member', linked from members.user_id — rather than by writing
+            # the columns directly, so the seed cannot drift from the feature.
+            if seed_member.self_service:
+                account = User(
+                    email=seed_member.email,
+                    full_name=seed_member.full_name,
+                    role=UserRole.MEMBER,
+                    password_hash=digest,
+                )
+                self.db.add(account)
+                await self.db.flush()
+                member.user_id = account.id
+                self.summary.member_logins += 1
+
             self.db.add(member)
             self.members.append(member)
             self.summary.members += 1

@@ -15,11 +15,14 @@ from collections.abc import Sequence
 from sqlalchemy import Select, Text, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import NotFound
+from app.core.config import Settings
+from app.core.errors import NotFound, RuleViolation
+from app.core.security import hash_password
+from app.models.enums import UserRole
 from app.models.member import Member
 from app.models.user import User
 from app.repositories.visibility import visible_members_clause
-from app.schemas.member import MemberCreate, MemberUpdate
+from app.schemas.member import MemberAccountCreate, MemberCreate, MemberUpdate
 
 
 def _search_clause(query: Select[tuple[Member]], term: str) -> Select[tuple[Member]]:
@@ -125,6 +128,52 @@ class MemberService:
         changes = payload.model_dump(exclude_none=True)
         for field, value in changes.items():
             setattr(member, field, value.strip() if isinstance(value, str) else value)
+        await self.db.flush()
+        return member
+
+    async def enable_self_service(
+        self, member_id: uuid.UUID, payload: MemberAccountCreate, settings: Settings
+    ) -> Member:
+        """Give one member a login, so they can book for themselves.
+
+        Creates a ``users`` row with ``role='member'`` and points the member record
+        at it. The credential lives on ``users`` because that is what every actor
+        column in this system references — see the migration for why putting it on
+        ``members`` would have meant teaching the append-only timeline about two
+        kinds of actor.
+
+        **It grants an account, never a membership.** This method does not touch
+        ``membership_expiry``, which is the whole reason self-service can exist
+        here without modelling payment: whether somebody may book is already
+        decided by goal 4's expiry rule, and switching on a login does not and must
+        not change that answer. A member whose membership has lapsed can sign in,
+        see the timetable and read their own history — and is refused at the point
+        of booking, by the rule that was already there and already tested.
+
+        The address is the member's own, not a second one supplied here: two
+        addresses for one person is a support call waiting to happen. A collision
+        with an existing account therefore means this person is already somebody in
+        this system — plausibly a staff member who is also a customer — and raises
+        ``uq_users_email``, which the error layer turns into a readable 409.
+
+        Hashing goes through the same threadpool path as sign-in and account
+        creation: 100-500ms of deliberate CPU that would otherwise block the event
+        loop and freeze every other in-flight request on a single instance.
+        """
+        member = await self.get(member_id)
+        if member.user_id is not None:
+            raise RuleViolation("This member can already sign in.")
+
+        account = User(
+            email=member.email,
+            full_name=member.full_name,
+            role=UserRole.MEMBER,
+            password_hash=await hash_password(payload.password, settings),
+        )
+        self.db.add(account)
+        await self.db.flush()
+
+        member.user_id = account.id
         await self.db.flush()
         return member
 

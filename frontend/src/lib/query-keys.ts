@@ -34,6 +34,14 @@ export const keys = {
   bookings: (query: BookingQuery) => ['bookings', query] as const,
   bookingTimeline: (id: Uuid) => ['bookings', id, 'timeline'] as const,
 
+  // The member's own surface. Kept apart from the studio keys because they are
+  // a different person's view of the same studio: signing out clears everything
+  // anyway, but a shared key would let one role's cache answer the other's read.
+  myMembership: ['me', 'membership'] as const,
+  myBookings: ['me', 'bookings'] as const,
+  mySchedule: (days: number) => ['me', 'schedule', days] as const,
+  myClasses: ['me', 'classes'] as const,
+
   /** The roster of one session: every booking on it, including the waitlist. */
   roster: (sessionId: Uuid) => ['bookings', { session_id: sessionId }] as const,
 }
@@ -55,6 +63,15 @@ export const keys = {
  * with. `['operations']` is the prefix, so every window in the cache goes.
  */
 export const rateWriteAffects = [['teachers'], ['operations']] as const
+
+/**
+ * What a member booking or cancelling affects.
+ *
+ * Both their own lists, because every schedule row carries their status on it
+ * and the seats left — so taking a place changes the list they took it from.
+ * `['me']` is the prefix, so every cached window goes at once.
+ */
+export const memberWriteAffects = [['me']] as const
 
 export const bookingWriteAffects = [
   ['bookings'],

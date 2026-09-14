@@ -455,3 +455,112 @@ class TestPagination:
         again = (await staff.get(f"/api/v1/members?q={tag}&limit=2&offset=0")).json()
 
         assert [m["id"] for m in page_one["items"]] == [m["id"] for m in again["items"]]
+
+
+PASSWORD = "a-long-enough-member-password"
+
+
+async def _with_login(staff: AsyncClient, **overrides: Any) -> dict[str, Any]:
+    member = await _create(staff, **overrides)
+    response = await staff.post(
+        f"/api/v1/members/{member['id']}/account", json={"password": PASSWORD}
+    )
+    assert response.status_code == 201, response.text
+    return dict(response.json())
+
+
+class TestSelfService:
+    """Staff switching on a member's login.
+
+    There is no public sign-up: a member account implies a membership, a
+    membership implies somebody paid, and an endpoint on the open internet cannot
+    know that. The tests that matter here are about what enabling an account
+    **does not** do — most of all that it does not decide whether somebody may
+    book, which stays with goal 4's expiry rule.
+    """
+
+    async def test_staff_can_enable_a_login(self, staff: AsyncClient) -> None:
+        member = await _create(staff)
+        assert member["has_login"] is False
+
+        enabled = await staff.post(
+            f"/api/v1/members/{member['id']}/account", json={"password": PASSWORD}
+        )
+
+        assert enabled.status_code == 201, enabled.text
+        assert enabled.json()["has_login"] is True
+
+    async def test_the_member_can_then_sign_in(self, staff: AsyncClient, api: AsyncClient) -> None:
+        member = await _with_login(staff)
+
+        signed_in = await api.post(
+            "/api/v1/auth/login", json={"email": member["email"], "password": PASSWORD}
+        )
+
+        assert signed_in.status_code == 200, signed_in.text
+        assert signed_in.json()["user"]["role"] == "member"
+
+    async def test_enabling_does_not_grant_a_membership(self, staff: AsyncClient) -> None:
+        """The whole reason this feature needs no notion of payment. An expired
+        member gets an account and is still refused at the point of booking, by
+        the rule that was already there."""
+        lapsed = await _with_login(staff, membership_expiry="2020-01-01")
+
+        assert lapsed["has_login"] is True
+        assert lapsed["membership_expiry"] == "2020-01-01"
+
+    async def test_enabling_twice_is_refused(self, staff: AsyncClient) -> None:
+        """A second call is not a silent password reset. "They can already sign
+        in" and "change their password" are different requests."""
+        member = await _with_login(staff)
+
+        again = await staff.post(
+            f"/api/v1/members/{member['id']}/account", json={"password": PASSWORD}
+        )
+
+        # 422, not 409: the payload is valid and the *state* makes it impossible,
+        # which is what RuleViolation means throughout this codebase.
+        assert again.status_code == 422
+        assert "already sign in" in again.json()["message"]
+
+    async def test_a_short_password_is_refused(self, staff: AsyncClient) -> None:
+        member = await _create(staff)
+
+        response = await staff.post(
+            f"/api/v1/members/{member['id']}/account", json={"password": "short"}
+        )
+
+        assert response.status_code == 422
+
+    async def test_an_instructor_cannot_enable_one(
+        self, staff: AsyncClient, instructor: AsyncClient
+    ) -> None:
+        member = await _create(staff)
+
+        response = await instructor.post(
+            f"/api/v1/members/{member['id']}/account", json={"password": PASSWORD}
+        )
+
+        assert response.status_code == 403
+
+    async def test_there_is_no_public_sign_up(self, api: AsyncClient) -> None:
+        """Asserted rather than assumed. If somebody adds a registration route
+        later, this is the test that makes them argue for it."""
+        response = await api.post(
+            "/api/v1/members", json=_member()
+        )
+
+        assert response.status_code == 401
+
+    async def test_a_member_never_appears_in_the_instructor_picker(
+        self, staff: AsyncClient
+    ) -> None:
+        """The load-bearing one. `/users` feeds every instructor picker, and
+        SessionService validates an instructor id against the same rule — so a
+        member appearing here would not merely be offered, it would be accepted."""
+        member = await _with_login(staff)
+
+        listed = (await staff.get("/api/v1/users")).json()
+
+        assert all(row["email"] != member["email"] for row in listed)
+        assert all(row["role"] in ("staff", "instructor") for row in listed)

@@ -1,9 +1,19 @@
 """Members — customer records — and membership alert dismissals.
 
-Members have no authentication columns. They are records the studio keeps, not
-accounts: goal 1 gives logins to staff and instructors only, and bookings are
-created for a member by staff. The self-service phase adds ``password_hash`` and
-``last_login_at`` here, and ``bookings.member_id`` never moves.
+A member is a record the studio keeps, and may *also* have a login. The two are
+deliberately separate things: ``members`` is the customer, ``users`` is the
+credential, and ``members.user_id`` joins them when a member opts into
+self-service booking. Most members have no account at all and never will —
+somebody who rings the desk to book is served exactly as before.
+
+This file used to say the self-service phase would add ``password_hash`` and
+``last_login_at`` *here*. It does not, and the reason is the audit trail: every
+write names its actor as a foreign key into ``users``, so a member who books
+their own place must be a row in that table or ``bookings.created_by`` has
+nothing valid to hold. Putting credentials on ``members`` would mean teaching the
+append-only timeline about two kinds of actor, which is the most expensive place
+in this schema to add a concept. The half of that note which was right still
+holds: ``bookings.member_id`` never moves.
 """
 
 from __future__ import annotations
@@ -40,7 +50,22 @@ class Member(Base, TimestampMixin):
 
     notes: Mapped[Str] = mapped_column(server_default="")
 
+    # The login this member signs in with, when they have one. Null for everybody
+    # the desk has ever added by hand, which is most members — self-service is
+    # something a member opts into, not a migration every record undergoes.
+    #
+    # RESTRICT on delete, like every other foreign key into `users`: accounts are
+    # deactivated rather than removed, because a deleted one would orphan the
+    # bookings and audit rows naming it as the actor.
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+
     bookings: Mapped[list[Booking]] = relationship(back_populates="member", lazy="raise_on_sql")
+
+    @property
+    def has_login(self) -> bool:
+        return self.user_id is not None
 
     __table_args__ = (
         # Goal 6 searches name and email. gin_trgm_ops indexes are added in the

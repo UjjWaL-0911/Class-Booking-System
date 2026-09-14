@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ExpiryChip } from '@/components/domain/chips'
+import { MemberLoginDialog } from '@/components/domain/member-login-dialog'
 import { MemberDialog } from '@/components/domain/member-dialog'
 import { Button } from '@/components/ui/button'
 import { Panel } from '@/components/ui/panel'
@@ -40,6 +41,7 @@ export function MembersPage() {
   const isStaff = useIsStaff()
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState<Member | null>(null)
+  const [enablingLogin, setEnablingLogin] = useState<Member | null>(null)
   const [adding, setAdding] = useState(false)
 
   const q = params.get('q') ?? ''
@@ -132,6 +134,14 @@ export function MembersPage() {
                   <Tr key={member.id}>
                     <Td>
                       <PersonCell name={member.full_name} email={member.email} />
+                      {/* Said on the person rather than in a column of its own:
+                          most members have no login and never will, so a column
+                          would be twenty-two empty cells to mark two full ones. */}
+                      {member.has_login && (
+                        <span className="mt-0.5 block text-11 text-graphite">
+                          Books online
+                        </span>
+                      )}
                     </Td>
                     <Td>
                       <div className="flex items-center gap-2.5">
@@ -162,6 +172,15 @@ export function MembersPage() {
                         >
                           Bookings
                         </Link>
+                        {isStaff && !member.has_login && (
+                          <button
+                            type="button"
+                            onClick={() => setEnablingLogin(member)}
+                            className="text-12 text-graphite hover:text-ink hover:underline"
+                          >
+                            Let them book online
+                          </button>
+                        )}
                         {isStaff && (
                           <button
                             type="button"
@@ -191,6 +210,7 @@ export function MembersPage() {
 
       {isStaff && (
         <>
+          <MemberLoginDialog member={enablingLogin} onClose={() => setEnablingLogin(null)} />
           <MemberDialog open={adding} onOpenChange={setAdding} />
           <MemberDialog
             open={editing !== null}

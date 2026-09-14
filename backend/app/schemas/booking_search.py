@@ -64,6 +64,7 @@ class BookingListItem(BaseModel):
     session_has_passed: bool
 
     # 1-based place in the queue, and null unless this booking is waitlisted.
-    # Members have no accounts here, so "waitlist position visibility" means the
-    # person at the desk can answer "where am I?" without opening the session.
+    # This is the desk's copy of the number: the same value a member now reads on
+    # their own list, counted by the same column function, so the two cannot tell
+    # one person two different things about where they are standing.
     waitlist_position: int | None = None

@@ -24,6 +24,7 @@ from app.api.v1.routers import (
     dashboard,
     exports,
     health,
+    me,
     members,
     operations,
     public_schedule,
@@ -87,6 +88,10 @@ def create_app() -> FastAPI:
         rooms.router,
         users.router,
         members.router,
+        # Member self-service. Mounted with the rest because it is part of the
+        # same API contract; what makes it a member surface is the CurrentMember
+        # dependency inside it, which is visible in one file.
+        me.router,
         sessions.router,
         bookings.router,
         exports.router,

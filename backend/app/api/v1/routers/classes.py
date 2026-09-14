@@ -12,7 +12,7 @@ import uuid
 
 from fastapi import APIRouter, Query, status
 
-from app.core.deps import AnyUser, DbSession, Now, StaffUser
+from app.core.deps import DbSession, Now, StaffUser, StudioUser
 from app.schemas.studio_class import ClassCreate, ClassOut, ClassUpdate
 from app.services.class_service import ClassService
 
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/classes", tags=["classes"])
 @router.get("", response_model=list[ClassOut], summary="List classes")
 async def list_classes(
     db: DbSession,
-    _: AnyUser,
+    _: StudioUser,
     include_archived: bool = Query(
         default=False,
         description="Archived classes are hidden unless explicitly requested.",
@@ -33,7 +33,7 @@ async def list_classes(
 
 
 @router.get("/{class_id}", response_model=ClassOut, summary="Get one class")
-async def get_class(class_id: uuid.UUID, db: DbSession, _: AnyUser) -> ClassOut:
+async def get_class(class_id: uuid.UUID, db: DbSession, _: StudioUser) -> ClassOut:
     return ClassOut.model_validate(await ClassService(db).get(class_id))
 
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, status
 from sqlalchemy import select
 
-from app.core.deps import AnyUser, DbSession, StaffUser
+from app.core.deps import DbSession, StaffUser, StudioUser
 from app.models.room import Room
 from app.schemas.room import RoomCreate, RoomOut
 
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/rooms", tags=["rooms"])
 
 
 @router.get("", response_model=list[RoomOut], summary="List rooms")
-async def list_rooms(db: DbSession, _: AnyUser) -> list[RoomOut]:
+async def list_rooms(db: DbSession, _: StudioUser) -> list[RoomOut]:
     rooms = (await db.execute(select(Room).order_by(Room.name))).scalars().all()
     return [RoomOut.model_validate(r) for r in rooms]
 
