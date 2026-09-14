@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { BookableSession, MyBooking, MyMembership, Uuid } from './types'
+import type { BookableSession, MyBooking, MyMembership, OfferedClass, Uuid } from './types'
 
 /**
  * The member's own surface.
@@ -19,6 +19,10 @@ export function listMyBookings(): Promise<MyBooking[]> {
 
 export function listBookableSessions(days: number): Promise<BookableSession[]> {
   return request<BookableSession[]>(`/me/schedule?days=${days}`)
+}
+
+export function listOfferedClasses(): Promise<OfferedClass[]> {
+  return request<OfferedClass[]>('/me/classes')
 }
 
 export function bookMyself(sessionId: Uuid): Promise<MyBooking> {

@@ -10,7 +10,8 @@ import { MemberShell } from '@/layout/member-shell'
 import { RequireMember, RequireStudio } from '@/layout/require-role'
 import { RequireSession } from '@/layout/require-session'
 import { MyBookingsPage } from '@/routes/my-bookings'
-import { MySchedulePage } from '@/routes/my-schedule'
+import { MyClassesPage } from '@/routes/my-classes'
+import { MyTimetablePage } from '@/routes/my-timetable'
 import { LandingPage } from '@/routes/landing/landing'
 import { PublicSchedulePage } from '@/routes/schedule'
 import { SignInPage } from '@/routes/sign-in'
@@ -79,7 +80,8 @@ const router = createBrowserRouter([
             element: <MemberShell />,
             children: [
               { path: routes.myBookings, element: <MyBookingsPage /> },
-              { path: routes.mySchedule, element: <MySchedulePage /> },
+              { path: routes.myTimetable, element: <MyTimetablePage /> },
+              { path: routes.myClasses, element: <MyClassesPage /> },
             ],
           },
         ],

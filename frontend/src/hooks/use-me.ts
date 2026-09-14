@@ -5,6 +5,7 @@ import {
   getMyMembership,
   listBookableSessions,
   listMyBookings,
+  listOfferedClasses,
 } from '@/api/me'
 import { keys, memberWriteAffects } from '@/lib/query-keys'
 import type { Uuid } from '@/api/types'
@@ -25,6 +26,21 @@ export function useMyMembership() {
 
 export function useMyBookings() {
   return useQuery({ queryKey: keys.myBookings, queryFn: listMyBookings })
+}
+
+/**
+ * What the studio offers.
+ *
+ * A long `staleTime`: a studio's catalogue changes when somebody adds a class,
+ * which is a rare thing done elsewhere. Refetching it on every visit to the
+ * timetable would be a request that almost never returns anything new.
+ */
+export function useOfferedClasses() {
+  return useQuery({
+    queryKey: keys.myClasses,
+    queryFn: listOfferedClasses,
+    staleTime: 600_000,
+  })
 }
 
 export function useBookableSessions(days = SCHEDULE_DAYS) {

@@ -24,7 +24,7 @@ import datetime as dt
 import uuid
 from typing import Any, NamedTuple
 
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.booking import Booking
@@ -206,5 +206,48 @@ async def bookable_sessions(
             my_status=row[4],
             my_waitlist_position=row[5],
         )
+        for row in (await db.execute(query)).all()
+    ]
+
+
+class OfferedClassRow(NamedTuple):
+    studio_class: StudioClass
+    upcoming_sessions: int
+
+
+async def offered_classes(
+    db: AsyncSession, *, now: dt.datetime, until: dt.datetime
+) -> list[OfferedClassRow]:
+    """What the studio offers, with how much of each is on the timetable.
+
+    Archived classes are excluded: archiving means "not offered any more", and
+    this endpoint answers exactly that question. Every live class is listed even
+    when nothing is scheduled — a class with no sessions is a real part of what
+    the studio does, and saying so is better than implying it does not exist.
+
+    The count is a LEFT JOIN with the window conditions in the ``ON`` clause
+    rather than the ``WHERE``, for the reason the room utilisation report needs
+    the same shape: moving them into ``WHERE`` turns the outer join back into an
+    inner one and silently drops the classes with nothing coming up, which are
+    precisely the rows this distinction exists to keep.
+    """
+    upcoming = and_(
+        ClassSession.class_id == StudioClass.id,
+        ClassSession.deleted_at.is_(None),
+        ClassSession.starts_at >= now,
+        ClassSession.starts_at < until,
+    )
+
+    query = (
+        select(StudioClass, func.count(ClassSession.id))
+        .select_from(StudioClass)
+        .outerjoin(ClassSession, upcoming)
+        .where(StudioClass.archived_at.is_(None))
+        .group_by(StudioClass.id)
+        .order_by(StudioClass.title)
+    )
+
+    return [
+        OfferedClassRow(studio_class=row[0], upcoming_sessions=int(row[1]))
         for row in (await db.execute(query)).all()
     ]

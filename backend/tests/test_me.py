@@ -625,3 +625,120 @@ class TestMySchedule:
 
         assert row["my_status"] == "booked"
         assert row["my_waitlist_position"] is None
+
+
+class TestOfferedClasses:
+    """The catalogue a member browses.
+
+    A different question from the timetable, and the tests reflect that: what
+    matters is which classes appear at all, not which sessions.
+    """
+
+    async def test_it_lists_what_the_studio_offers(
+        self, staff: AsyncClient, member: AsyncClient
+    ) -> None:
+        tag = uuid.uuid4().hex[:8]
+        created = (
+            await staff.post(
+                "/api/v1/classes",
+                json={
+                    "title": f"Offered {tag}",
+                    "description": "A description a member can read.",
+                    "discipline": "pilates",
+                    "default_duration_min": 55,
+                    "default_capacity": 12,
+                },
+            )
+        ).json()
+
+        rows = (await member.get("/api/v1/me/classes")).json()
+        mine = next(r for r in rows if r["id"] == created["id"])
+
+        assert mine["title"] == created["title"]
+        assert mine["description"] == "A description a member can read."
+        assert mine["default_duration_min"] == 55
+        assert mine["upcoming_sessions"] == 0
+
+    async def test_a_class_with_nothing_scheduled_still_appears(
+        self, staff: AsyncClient, member: AsyncClient
+    ) -> None:
+        """It is a real part of what the studio does. Archiving is what "no longer
+        offered" means, and an archived class is not on this list at all."""
+        tag = uuid.uuid4().hex[:8]
+        created = (
+            await staff.post(
+                "/api/v1/classes",
+                json={
+                    "title": f"Quiet {tag}",
+                    "description": "",
+                    "discipline": "yoga",
+                    "default_duration_min": 60,
+                    "default_capacity": 10,
+                },
+            )
+        ).json()
+
+        rows = (await member.get("/api/v1/me/classes")).json()
+
+        assert any(r["id"] == created["id"] and r["upcoming_sessions"] == 0 for r in rows)
+
+    async def test_an_archived_class_is_gone(
+        self, staff: AsyncClient, member: AsyncClient
+    ) -> None:
+        tag = uuid.uuid4().hex[:8]
+        created = (
+            await staff.post(
+                "/api/v1/classes",
+                json={
+                    "title": f"Retired {tag}",
+                    "description": "",
+                    "discipline": "yoga",
+                    "default_duration_min": 60,
+                    "default_capacity": 10,
+                },
+            )
+        ).json()
+        archived = await staff.post(f"/api/v1/classes/{created['id']}/archive")
+        assert archived.status_code == 200, archived.text
+
+        rows = (await member.get("/api/v1/me/classes")).json()
+
+        assert all(r["id"] != created["id"] for r in rows)
+
+    async def test_it_counts_the_sessions_coming_up(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str], member: AsyncClient
+    ) -> None:
+        session_id = await _a_session_soon(staff, db, accounts)
+        row = next(
+            r
+            for r in (await member.get("/api/v1/me/schedule", params={"days": 31})).json()
+            if r["id"] == session_id
+        )
+
+        catalogue = (await member.get("/api/v1/me/classes")).json()
+        its_class = next(c for c in catalogue if c["id"] == row["class_id"])
+
+        assert its_class["upcoming_sessions"] >= 1
+
+    async def test_the_shape_carries_no_version_or_timestamps(
+        self, member: AsyncClient
+    ) -> None:
+        """`ClassOut` has `version`, `archived_at`, `created_at` and `updated_at`.
+        An optimistic-lock token is meaningless to somebody who cannot edit the
+        row, and handing one out invites a client to send it back."""
+        rows = (await member.get("/api/v1/me/classes")).json()
+
+        assert rows, "the seeded studio should offer something"
+        assert set(rows[0]) == {
+            "id",
+            "title",
+            "discipline",
+            "description",
+            "default_duration_min",
+            "upcoming_sessions",
+        }
+
+    async def test_a_studio_user_cannot_read_the_member_catalogue(
+        self, instructor: AsyncClient
+    ) -> None:
+        assert (await instructor.get("/api/v1/me/classes")).status_code == 403

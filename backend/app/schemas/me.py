@@ -101,6 +101,11 @@ class BookableSession(BaseModel):
     start_time: dt.time
     duration_min: int
 
+    # The class this session belongs to, so the timetable can be filtered to one
+    # of them and the catalogue can link into it. The public timetable carries no
+    # ids at all — a stranger has nothing to do with one — but a member browsing
+    # for "the Tuesday pilates" needs to name the class, not retype its title.
+    class_id: uuid.UUID
     class_title: str
     discipline: str
     description: str
@@ -122,6 +127,28 @@ class BookableSession(BaseModel):
     # screen answering "you are on the waiting list" without the number is a worse
     # answer than the second gives, for no reason a reader could guess.
     my_waitlist_position: int | None = None
+
+
+class OfferedClass(BaseModel):
+    """One class the studio offers, as a member browsing them sees it.
+
+    Not `ClassOut`, which carries `archived_at`, `version` and the timestamps —
+    an optimistic-lock token is meaningless to somebody who cannot edit the row,
+    and a shape that hands one out invites a client to send it back.
+
+    `upcoming_sessions` is the number on the timetable in the window a member can
+    book, which is the difference between "we offer this" and "you can have it".
+    A class with none is still listed: it is a real part of what the studio does,
+    and saying nothing is scheduled is a better answer than pretending the class
+    does not exist.
+    """
+
+    id: uuid.UUID
+    title: str
+    discipline: str
+    description: str
+    default_duration_min: int
+    upcoming_sessions: int
 
 
 class MyBookingCreate(BaseModel):

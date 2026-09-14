@@ -28,7 +28,10 @@ export const routes = {
   reports: `${APP}/reports`,
 
   myBookings: MY,
-  mySchedule: `${MY}/classes`,
+  myTimetable: `${MY}/timetable`,
+  myClasses: `${MY}/classes`,
+  /** The timetable, pre-filtered to one class. Where the catalogue leads. */
+  myTimetableForClass: (classId: string) => `${MY}/timetable?class=${classId}`,
 
   session: (id: string) => `${APP}/sessions/${id}`,
   bookingHistory: (id: string) => `${APP}/bookings/${id}`,

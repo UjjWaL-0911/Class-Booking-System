@@ -29,6 +29,7 @@ from app.core.time import today as studio_today
 from app.repositories.member_bookings import (
     bookable_sessions,
     my_bookings,
+    offered_classes,
 )
 from app.schemas.me import (
     BookableSession,
@@ -36,6 +37,7 @@ from app.schemas.me import (
     MyBookingCreate,
     MyCancellation,
     MyMembership,
+    OfferedClass,
 )
 from app.services.booking_service import BookingService
 from app.services.session_service import SessionService
@@ -113,6 +115,40 @@ async def my_schedule(
     )
     counts = await SessionService(db, settings).counts_for([row.session.id for row in rows])
     return [render_bookable(row, counts[row.session.id], settings.tz) for row in rows]
+
+
+@router.get("/classes", response_model=list[OfferedClass], summary="What the studio offers")
+async def my_classes(
+    db: DbSession, member: CurrentMember, settings: Config, now: Now
+) -> list[OfferedClass]:
+    """The catalogue, with how much of each is on the timetable.
+
+    A different question from `/me/schedule`, which is why it is a different
+    endpoint rather than a grouping of that one. The schedule answers "what can I
+    do on Thursday"; this answers "what does this studio actually do" — and a
+    class with nothing scheduled belongs in the second answer and not the first.
+
+    Takes `CurrentMember` though nothing here is personal, which is deliberate: it
+    keeps every member route resolving a member from the credential, so "does this
+    one scope to the caller" never becomes a question to check route by route. The
+    catalogue without an account already exists — it is the public timetable.
+    """
+    ends = to_utc(
+        studio_today(settings.tz, now) + dt.timedelta(days=MAX_DAYS_AHEAD),
+        dt.time.min,
+        settings.tz,
+    )
+    return [
+        OfferedClass(
+            id=row.studio_class.id,
+            title=row.studio_class.title,
+            discipline=row.studio_class.discipline,
+            description=row.studio_class.description,
+            default_duration_min=row.studio_class.default_duration_min,
+            upcoming_sessions=row.upcoming_sessions,
+        )
+        for row in await offered_classes(db, now=now, until=ends)
+    ]
 
 
 @router.post(

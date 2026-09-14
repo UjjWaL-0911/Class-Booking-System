@@ -40,6 +40,7 @@ export const keys = {
   myMembership: ['me', 'membership'] as const,
   myBookings: ['me', 'bookings'] as const,
   mySchedule: (days: number) => ['me', 'schedule', days] as const,
+  myClasses: ['me', 'classes'] as const,
 
   /** The roster of one session: every booking on it, including the waitlist. */
   roster: (sessionId: Uuid) => ['bookings', { session_id: sessionId }] as const,

@@ -6,6 +6,7 @@ import { useCancelMyBooking, useMyBookings, useMyMembership } from '@/hooks/use-
 import { formatDateLong, formatTimeRange } from '@/lib/dates'
 import { routes } from '@/lib/routes'
 import { Link } from 'react-router-dom'
+import { PageHeader } from '@/layout/app-shell'
 import type { MyBooking } from '@/api/types'
 
 /**
@@ -34,11 +35,16 @@ export function MyBookingsPage() {
   const past = rows.filter((row) => row.session_has_passed)
 
   return (
-    <div className="flex flex-col gap-12">
-      <header>
-        <h1 className="display text-32 leading-tight sm:text-36">My bookings</h1>
-        {membership.data && <MembershipLine expired={membership.data.is_expired} />}
-      </header>
+    <>
+      <PageHeader
+        title="My bookings"
+        subtitle={
+          upcoming.length === 0
+            ? 'Nothing coming up yet.'
+            : `${upcoming.length} ${upcoming.length === 1 ? 'class' : 'classes'} coming up.`
+        }
+      />
+      {membership.data && <MembershipLine expired={membership.data.is_expired} />}
 
       <section className="flex flex-col gap-4">
         <h2 className="text-12 font-medium text-graphite">Coming up</h2>
@@ -46,7 +52,7 @@ export function MyBookingsPage() {
           <EmptyState
             title="Nothing booked yet"
             action={
-              <Link to={routes.mySchedule}>
+              <Link to={routes.myTimetable}>
                 <Button size="sm" variant="primary">
                   Find a class
                 </Button>
@@ -74,7 +80,7 @@ export function MyBookingsPage() {
           </ul>
         </section>
       )}
-    </div>
+    </>
   )
 }
 

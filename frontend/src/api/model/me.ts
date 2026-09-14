@@ -36,6 +36,16 @@ export interface MyBooking {
   can_cancel: boolean
 }
 
+export interface OfferedClass {
+  id: Uuid
+  title: string
+  discipline: string
+  description: string
+  default_duration_min: number
+  /** How many are on the timetable in the window a member can book. */
+  upcoming_sessions: number
+}
+
 export interface BookableSession {
   id: Uuid
 
@@ -43,6 +53,8 @@ export interface BookableSession {
   start_time: LocalTime
   duration_min: number
 
+  /** The class this belongs to, so the timetable can be filtered to one. */
+  class_id: Uuid
   class_title: string
   discipline: string
   description: string
