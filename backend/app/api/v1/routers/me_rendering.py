@@ -102,4 +102,5 @@ def render_bookable(
         spots_remaining=remaining,
         is_full=remaining == 0,
         my_status=row.my_status,
+        my_waitlist_position=row.my_waitlist_position,
     )

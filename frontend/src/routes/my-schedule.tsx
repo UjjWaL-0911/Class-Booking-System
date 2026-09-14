@@ -4,6 +4,7 @@ import { EmptyState, ErrorState, Skeleton } from '@/components/ui/states'
 import { useToast } from '@/components/ui/toast-context'
 import { useBookMyself, useBookableSessions, useMyMembership } from '@/hooks/use-me'
 import { formatDateLong, formatTimeRange } from '@/lib/dates'
+import { ordinal } from '@/lib/vocabulary'
 import type { BookableSession } from '@/api/types'
 
 /**
@@ -127,11 +128,16 @@ function Seats({ session }: { session: BookableSession }) {
 }
 
 /**
- * One button, or none.
+ * One button, or where you already stand.
  *
  * A member already on a class is shown their standing rather than a disabled
  * button: "you are on the waiting list" answers the question, where a greyed-out
  * "Book" leaves them wondering whether it failed.
+ *
+ * **And the queue position comes with it.** This screen first said only "on the
+ * waiting list" while the member's own list said "Waiting list · 1st", which is
+ * two answers to one question — and the timetable is where somebody is *deciding*
+ * whether to wait, so it is the screen that most needs the number.
  */
 function Action({
   session,
@@ -146,7 +152,13 @@ function Action({
     return <span className="text-12 font-medium text-good-ink">You are booked</span>
   }
   if (session.my_status === 'waitlisted') {
-    return <span className="text-12 font-medium text-wait-ink">On the waiting list</span>
+    return (
+      <span className="text-12 font-medium text-wait-ink">
+        {session.my_waitlist_position === null
+          ? 'On the waiting list'
+          : `On the waiting list · ${ordinal(session.my_waitlist_position)}`}
+      </span>
+    )
   }
   return (
     <Button size="sm" variant="primary" disabled={pending} onClick={onBook}>

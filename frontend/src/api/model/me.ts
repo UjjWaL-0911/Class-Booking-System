@@ -53,4 +53,6 @@ export interface BookableSession {
   is_full: boolean
   /** This member's own active booking on it, or null. */
   my_status: BookingStatus | null
+  /** Their 1-based place in the queue, when they are in it. */
+  my_waitlist_position: number | null
 }

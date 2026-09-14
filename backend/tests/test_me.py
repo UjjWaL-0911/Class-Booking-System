@@ -103,6 +103,47 @@ async def _a_session_soon(
     return await _a_session(staff, db, accounts, on=on, at=at)
 
 
+async def _a_one_seat_session(
+    staff: AsyncClient, db: AsyncSession, accounts: dict[str, str]
+) -> str:
+    """A near-future session with exactly one place, so the second booking queues."""
+    tag = uuid.uuid4().hex[:8]
+    room = (await staff.post("/api/v1/rooms", json={"name": f"One {tag}"})).json()
+    studio_class = (
+        await staff.post(
+            "/api/v1/classes",
+            json={
+                "title": f"One Seat {tag}",
+                "description": "",
+                "discipline": "yoga",
+                "default_duration_min": 60,
+                "default_capacity": 1,
+            },
+        )
+    ).json()
+    instructor_id = str(
+        (
+            await db.execute(
+                text("SELECT id FROM users WHERE email = :e"), {"e": accounts["instructor"]}
+            )
+        ).scalar_one()
+    )
+    number = uuid.uuid4().int
+    created = await staff.post(
+        "/api/v1/sessions",
+        json={
+            "class_id": studio_class["id"],
+            "session_date": (dt.date.today() + dt.timedelta(days=4)).isoformat(),
+            "start_time": f"{6 + number % 16:02d}:{(number // 16) % 60:02d}:00",
+            "primary_instructor_id": instructor_id,
+            "room_id": room["id"],
+            "duration_min": 60,
+        },
+    )
+    assert created.status_code == 201, created.text
+    return str(created.json()["id"])
+
+
 async def _book(staff: AsyncClient, session_id: str, member_id: str) -> dict[str, Any]:
     response = await staff.post(
         "/api/v1/bookings", json={"session_id": session_id, "member_id": member_id}
@@ -543,3 +584,44 @@ class TestMySchedule:
         mine = matching[0]
         assert mine["my_status"] == "booked"
         assert all(row["my_status"] is None for row in others)
+
+    async def test_the_schedule_shows_my_place_in_the_queue(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str], member: AsyncClient
+    ) -> None:
+        """The timetable and the member's own list must answer "where am I?" the
+        same way. They did not at first: the schedule said only "on the waiting
+        list" while the bookings list said "1st", which is two answers to one
+        question — and the timetable is where somebody decides whether to wait."""
+        session_id = await _a_one_seat_session(staff, db, accounts)
+        await _book(staff, session_id, (await _another_member(staff))["id"])
+        queued = await member.post("/api/v1/me/bookings", json={"session_id": session_id})
+        assert queued.json()["status"] == "waitlisted"
+
+        row = next(
+            r
+            for r in (await member.get("/api/v1/me/schedule", params={"days": 31})).json()
+            if r["id"] == session_id
+        )
+        own = next(
+            r
+            for r in (await member.get("/api/v1/me/bookings")).json()
+            if r["id"] == queued.json()["id"]
+        )
+
+        assert row["my_waitlist_position"] == 1
+        assert row["my_waitlist_position"] == own["waitlist_position"]
+
+    async def test_a_booked_row_has_no_position(
+        self, staff: AsyncClient, db: AsyncSession, accounts: dict[str, str], member: AsyncClient
+    ) -> None:
+        session_id = await _a_session_soon(staff, db, accounts)
+        await member.post("/api/v1/me/bookings", json={"session_id": session_id})
+
+        row = next(
+            r
+            for r in (await member.get("/api/v1/me/schedule", params={"days": 31})).json()
+            if r["id"] == session_id
+        )
+
+        assert row["my_status"] == "booked"
+        assert row["my_waitlist_position"] is None

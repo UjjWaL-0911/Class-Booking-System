@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -129,6 +129,7 @@ class BookableRow(NamedTuple):
     instructor_name: str
     room_name: str
     my_status: BookingStatus | None
+    my_waitlist_position: int | None
 
 
 async def bookable_sessions(
@@ -153,20 +154,36 @@ async def bookable_sessions(
     cancelled place is not a reason to stop somebody rebooking, and the question
     this column answers is "may I book this".
     """
-    mine = (
-        select(Booking.status)
-        .where(
-            Booking.session_id == ClassSession.id,
-            Booking.member_id == member_id,
-            Booking.status.in_(_CANCELLABLE),
+    def own(column: Any) -> Any:
+        """One column of this member's own active booking on the session in hand.
+
+        Two correlated subqueries rather than an outer join to `bookings`: a join
+        would multiply the row when a member has a cancelled booking on the same
+        session as well as an active one, which is a real case — cancelling and
+        rebooking is ordinary. Restricting to active statuses makes at most one
+        row match, and a scalar subquery says that in the type rather than relying
+        on it.
+        """
+        return (
+            select(column)
+            .where(
+                Booking.session_id == ClassSession.id,
+                Booking.member_id == member_id,
+                Booking.status.in_(_CANCELLABLE),
+            )
+            .limit(1)
+            .correlate(ClassSession)
+            .scalar_subquery()
         )
-        .limit(1)
-        .correlate(ClassSession)
-        .scalar_subquery()
-    )
+
+    mine = own(Booking.status)
+    # The same column function the desk's list and the promotion query use, so the
+    # number on the timetable, the number on the member's own list and the seat
+    # they actually get are all counted one way.
+    my_place = own(waitlist_position_column())
 
     query = (
-        select(ClassSession, StudioClass, User.full_name, Room.name, mine)
+        select(ClassSession, StudioClass, User.full_name, Room.name, mine, my_place)
         .join(StudioClass, StudioClass.id == ClassSession.class_id)
         .join(User, User.id == ClassSession.primary_instructor_id)
         .join(Room, Room.id == ClassSession.room_id)
@@ -187,6 +204,7 @@ async def bookable_sessions(
             instructor_name=row[2],
             room_name=row[3],
             my_status=row[4],
+            my_waitlist_position=row[5],
         )
         for row in (await db.execute(query)).all()
     ]

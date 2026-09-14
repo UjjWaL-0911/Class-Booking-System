@@ -116,6 +116,13 @@ class BookableSession(BaseModel):
     # booking answers no.
     my_status: BookingStatus | None = None
 
+    # Where they are in the queue, when they are in it. Carried here as well as on
+    # `MyBooking` because a member looking at the timetable and a member looking at
+    # their own list are asking the same question — "where am I?" — and the first
+    # screen answering "you are on the waiting list" without the number is a worse
+    # answer than the second gives, for no reason a reader could guess.
+    my_waitlist_position: int | None = None
+
 
 class MyBookingCreate(BaseModel):
     """Book myself onto a session.
