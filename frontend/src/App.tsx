@@ -6,7 +6,11 @@ import { ToastProvider } from '@/components/ui/toast'
 import { createQueryClient } from '@/lib/query-client'
 import { routes } from '@/lib/routes'
 import { AppShell } from '@/layout/app-shell'
+import { MemberShell } from '@/layout/member-shell'
+import { RequireMember, RequireStudio } from '@/layout/require-role'
 import { RequireSession } from '@/layout/require-session'
+import { MyBookingsPage } from '@/routes/my-bookings'
+import { MySchedulePage } from '@/routes/my-schedule'
 import { LandingPage } from '@/routes/landing/landing'
 import { PublicSchedulePage } from '@/routes/schedule'
 import { SignInPage } from '@/routes/sign-in'
@@ -44,17 +48,40 @@ const router = createBrowserRouter([
     element: <RequireSession />,
     children: [
       {
-        element: <AppShell />,
+        // The studio's side. Guarded so a member who bookmarked /app is sent home
+        // rather than meeting a shell whose first act is a request it cannot make:
+        // AppShell mounts StudioProvider, which fetches the dashboard.
+        element: <RequireStudio />,
         children: [
-          { path: routes.today, element: <TodayPage /> },
-          { path: routes.timetable, element: <TimetablePage /> },
-          { path: '/app/sessions/:sessionId', element: <SessionDetailPage /> },
-          { path: routes.bookings, element: <BookingsPage /> },
-          { path: '/app/bookings/:bookingId', element: <BookingHistoryPage /> },
-          { path: routes.members, element: <MembersPage /> },
-          { path: routes.classes, element: <ClassesPage /> },
-          { path: routes.people, element: <PeoplePage /> },
-          { path: routes.reports, element: <ReportsPage /> },
+          {
+            element: <AppShell />,
+            children: [
+              { path: routes.today, element: <TodayPage /> },
+              { path: routes.timetable, element: <TimetablePage /> },
+              { path: '/app/sessions/:sessionId', element: <SessionDetailPage /> },
+              { path: routes.bookings, element: <BookingsPage /> },
+              { path: '/app/bookings/:bookingId', element: <BookingHistoryPage /> },
+              { path: routes.members, element: <MembersPage /> },
+              { path: routes.classes, element: <ClassesPage /> },
+              { path: routes.people, element: <PeoplePage /> },
+              { path: routes.reports, element: <ReportsPage /> },
+            ],
+          },
+        ],
+      },
+      {
+        // The member's side, with a shell of its own. Two roles, two homes: a
+        // member is not a studio user with fewer menu items, and building it that
+        // way would have meant hiding things rather than not having them.
+        element: <RequireMember />,
+        children: [
+          {
+            element: <MemberShell />,
+            children: [
+              { path: routes.myBookings, element: <MyBookingsPage /> },
+              { path: routes.mySchedule, element: <MySchedulePage /> },
+            ],
+          },
         ],
       },
     ],

@@ -8,6 +8,11 @@
  */
 const APP = '/app'
 
+// The member's side. A separate prefix rather than a branch inside /app, because
+// the two have different shells: /app mounts StudioProvider, which fetches the
+// dashboard — an endpoint a member is refused.
+const MY = '/my'
+
 export const routes = {
   /** Public. The landing page, which is not the sign-in page. */
   landing: '/',
@@ -21,6 +26,9 @@ export const routes = {
   classes: `${APP}/classes`,
   people: `${APP}/people`,
   reports: `${APP}/reports`,
+
+  myBookings: MY,
+  mySchedule: `${MY}/classes`,
 
   session: (id: string) => `${APP}/sessions/${id}`,
   bookingHistory: (id: string) => `${APP}/bookings/${id}`,
