@@ -25,8 +25,9 @@ import type { PublicSession } from '@/api/types'
  * Two decisions about what it shows. **Spaces left, not places booked** — that is
  * what the server sends, and it is what somebody deciding whether to come needs;
  * how full the studio's classes are is the studio's business. And **no booking
- * button**, because members do not have accounts (Decision 7). Pretending
- * otherwise would be the interface writing a cheque the system cannot cash.
+ * button**: nobody reading this page is signed in, and there is no sign-up to send
+ * them to (Decision 5). Pretending otherwise would be the interface writing a
+ * cheque the system cannot cash. A member with a login books from `/my`.
  */
 const DAYS_AHEAD = 14
 
