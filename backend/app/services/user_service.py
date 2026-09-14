@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings
 from app.core.errors import NotFound
 from app.core.security import hash_password
+from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.auth import UserCreate
 from app.schemas.user import UserUpdate
@@ -42,8 +43,21 @@ class UserService:
         Deactivated accounts are excluded rather than shown greyed out. The two
         places this list is read are pickers for who may lead a class, and someone
         who has left the studio is not an answer to that question.
+
+        **Members are excluded too, and that filter is load-bearing.** This list is
+        what every instructor picker reads, so without it a self-service customer
+        would appear as a candidate to lead a class — and ``SessionService``
+        validates an instructor id against the same rule, so the two would agree
+        and schedule them. The rule is named once, on the role itself, rather than
+        written as ``!= MEMBER`` here: a fourth role should have to declare whether
+        it can teach instead of inheriting an answer from how this line was phrased.
         """
-        query = select(User).where(User.is_active.is_(True)).order_by(User.full_name)
+        teaching_roles = [r for r in UserRole if r.is_teacher]
+        query = (
+            select(User)
+            .where(User.is_active.is_(True), User.role.in_(teaching_roles))
+            .order_by(User.full_name)
+        )
         return (await self.db.execute(query)).scalars().all()
 
     async def create(self, payload: UserCreate) -> User:

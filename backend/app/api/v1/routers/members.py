@@ -21,7 +21,7 @@ import uuid
 
 from fastapi import APIRouter, Query, status
 
-from app.core.deps import AnyUser, DbSession, StaffUser
+from app.core.deps import DbSession, StaffUser, StudioUser
 from app.schemas.common import Page
 from app.schemas.member import MemberCreate, MemberOut, MemberUpdate
 from app.services.member_service import MemberService
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/members", tags=["members"])
 @router.get("", response_model=Page[MemberOut], summary="List and search members")
 async def list_members(
     db: DbSession,
-    viewer: AnyUser,
+    viewer: StudioUser,
     q: str | None = Query(
         default=None,
         max_length=100,
@@ -57,7 +57,7 @@ async def list_members(
 
 
 @router.get("/{member_id}", response_model=MemberOut, summary="Get one member")
-async def get_member(member_id: uuid.UUID, db: DbSession, viewer: AnyUser) -> MemberOut:
+async def get_member(member_id: uuid.UUID, db: DbSession, viewer: StudioUser) -> MemberOut:
     """404 rather than 403 for a member outside the viewer's scope — saying "this
     one exists but is not yours" would enumerate the membership one id at a time."""
     return MemberOut.model_validate(await MemberService(db, viewer).get(member_id))

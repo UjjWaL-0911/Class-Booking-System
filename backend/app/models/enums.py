@@ -14,10 +14,34 @@ from sqlalchemy import Enum as SAEnum
 
 
 class UserRole(StrEnum):
-    """Goal 1's two roles. Members are records, not accounts, so they are absent."""
+    """Who can sign in, and in what capacity.
+
+    Goal 1 names the first two. ``MEMBER`` arrived with self-service booking and is
+    a different kind of thing: staff and instructors *run* the studio, a member
+    *attends* it. The customer record is still ``members`` — this only says that a
+    given login belongs to one, via ``members.user_id``.
+
+    **Most role checks in this codebase were written when there were two**, in the
+    shape ``if role is STAFF: ... else: <instructor>``. Every one of those `else`
+    branches is now reachable by a member, and each has to decide deliberately
+    rather than inherit the instructor answer. They fail closed — a member matches
+    no instructor row, so a visibility filter returns nothing and a role guard
+    returns 403 — which makes the omissions safe but no less wrong.
+    """
 
     STAFF = "staff"
     INSTRUCTOR = "instructor"
+    MEMBER = "member"
+
+    @property
+    def is_teacher(self) -> bool:
+        """May be put in front of a class. The rule instructor pickers must use.
+
+        Written as a property on the role rather than a check at each call site,
+        because "which accounts can lead a session" is now a question with a wrong
+        answer available: listing every active user would offer a member.
+        """
+        return self in (UserRole.STAFF, UserRole.INSTRUCTOR)
 
 
 class BookingStatus(StrEnum):

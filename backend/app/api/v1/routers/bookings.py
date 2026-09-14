@@ -21,7 +21,7 @@ import uuid
 
 from fastapi import APIRouter, Query, status
 
-from app.core.deps import Config, CurrentUser, DbSession, Now, StaffUser
+from app.core.deps import Config, DbSession, Now, StaffUser, StudioUser
 from app.models.booking import Booking, BookingEvent
 from app.models.enums import BookingStatus
 from app.repositories.booking_search import has_passed, search_bookings
@@ -77,7 +77,7 @@ def _event_to_out(event: BookingEvent) -> BookingEventOut:
 @router.get("", response_model=Page[BookingListItem], summary="Find bookings")
 async def list_bookings(
     db: DbSession,
-    viewer: CurrentUser,
+    viewer: StudioUser,
     settings: Config,
     now: Now,
     q: str | None = Query(default=None, max_length=100, description="Match member name or email."),
@@ -247,7 +247,7 @@ async def settle_booking(
     db: DbSession,
     settings: Config,
     now: Now,
-    viewer: CurrentUser,
+    viewer: StudioUser,
 ) -> BookingOut:
     """Mark a Booked booking as Attended or Absent, once the session has started.
 
@@ -279,7 +279,7 @@ async def add_note(
     db: DbSession,
     settings: Config,
     now: Now,
-    viewer: CurrentUser,
+    viewer: StudioUser,
 ) -> BookingEventOut:
     """Notes are timeline entries, not a field.
 
@@ -303,7 +303,7 @@ async def get_timeline(
     booking_id: uuid.UUID,
     db: DbSession,
     settings: Config,
-    viewer: CurrentUser,
+    viewer: StudioUser,
 ) -> BookingWithTimeline:
     """Goal 9: when it was created, every status change with old and new status and
     who made it, and any notes.

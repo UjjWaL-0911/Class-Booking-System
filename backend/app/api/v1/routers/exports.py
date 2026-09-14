@@ -11,7 +11,7 @@ import uuid
 
 from fastapi import APIRouter, Response
 
-from app.core.deps import Config, CurrentUser, DbSession
+from app.core.deps import Config, DbSession, StudioUser
 from app.services.export_service import ExportService
 from app.services.session_service import SessionService
 
@@ -27,7 +27,7 @@ async def export_attendance(
     session_id: uuid.UUID,
     db: DbSession,
     settings: Config,
-    viewer: CurrentUser,
+    viewer: StudioUser,
 ) -> Response:
     """Every booking on the session with its member and final status.
 

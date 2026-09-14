@@ -24,7 +24,7 @@ import datetime as dt
 
 from fastapi import APIRouter, Query
 
-from app.core.deps import Config, CurrentUser, DbSession, Now
+from app.core.deps import Config, DbSession, Now, StudioUser
 from app.core.time import today as studio_today
 from app.models.enums import UserRole
 from app.repositories.operations import instructor_pay, room_utilisation
@@ -40,7 +40,7 @@ async def operations_report(
     db: DbSession,
     settings: Config,
     now: Now,
-    viewer: CurrentUser,
+    viewer: StudioUser,
     date_from: dt.date | None = Query(default=None),
     date_to: dt.date | None = Query(default=None),
 ) -> OperationsReport:

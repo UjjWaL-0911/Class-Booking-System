@@ -19,7 +19,7 @@ import uuid
 from fastapi import APIRouter, Query, Response, status
 
 from app.core.config import Settings
-from app.core.deps import Config, CurrentUser, DbSession, Now, StaffUser
+from app.core.deps import Config, DbSession, Now, StaffUser, StudioUser
 from app.models.class_session import ClassSession
 from app.models.enums import BookingStatus
 from app.schemas.class_session import (
@@ -83,7 +83,7 @@ async def _render(service: SessionService, session: ClassSession, settings: Sett
 @router.get("", response_model=Page[SessionOut], summary="List sessions")
 async def list_sessions(
     db: DbSession,
-    viewer: CurrentUser,
+    viewer: StudioUser,
     settings: Config,
     class_id: uuid.UUID | None = Query(
         default=None, description="Opening a class shows its sessions."
@@ -116,7 +116,7 @@ async def list_sessions(
 
 @router.get("/{session_id}", response_model=SessionOut, summary="Get one session")
 async def get_session(
-    session_id: uuid.UUID, db: DbSession, viewer: CurrentUser, settings: Config
+    session_id: uuid.UUID, db: DbSession, viewer: StudioUser, settings: Config
 ) -> SessionOut:
     service = SessionService(db, settings)
     return await _render(service, await service.get(session_id, viewer), settings)
