@@ -200,6 +200,60 @@ async def staff(api: AsyncClient, accounts: dict[str, str]) -> AsyncClient:
     return await _authenticate(api, accounts["staff"], STAFF_PASSWORD)
 
 
+MEMBER_PASSWORD = "a-perfectly-ordinary-member-password"
+
+
+@pytest.fixture
+async def member_account(staff: AsyncClient) -> dict[str, str]:
+    """A member with a login, created the only way one can be: by staff.
+
+    Returns the member record plus the password, because a test that signs in as
+    this person needs both and looking the password up from a constant at each
+    call site is how they drift.
+    """
+    import uuid as _uuid
+
+    tag = _uuid.uuid4().hex[:8]
+    created = await staff.post(
+        "/api/v1/members",
+        json={
+            "full_name": f"Member {tag}",
+            "email": f"member-{tag}@example.com",
+            # Comfortably in the future: the expiry rule is goal 4's and has its
+            # own tests. A fixture that quietly expires would make unrelated
+            # member tests fail for a reason that is not their subject.
+            "membership_expiry": "2030-01-01",
+            "notes": "",
+        },
+    )
+    assert created.status_code == 201, created.text
+    record = dict(created.json())
+
+    enabled = await staff.post(
+        f"/api/v1/members/{record['id']}/account", json={"password": MEMBER_PASSWORD}
+    )
+    assert enabled.status_code == 201, enabled.text
+    return {"id": record["id"], "email": record["email"], "password": MEMBER_PASSWORD}
+
+
+@pytest.fixture
+async def member(
+    migrated_schema: None, member_account: dict[str, str]
+) -> AsyncIterator[AsyncClient]:
+    """A client signed in as a member.
+
+    Its own client, like the instructor fixture, so a test can hold a staff
+    session and a member session at once — which every authorization test here
+    needs, because the question is always "what can this one see that that one
+    can".
+    """
+    from app.main import create_app
+
+    transport = ASGITransport(app=create_app())
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield await _authenticate(client, member_account["email"], member_account["password"])
+
+
 @pytest.fixture
 async def instructor(migrated_schema: None, accounts: dict[str, str]) -> AsyncIterator[AsyncClient]:
     """A client signed in as an instructor.
